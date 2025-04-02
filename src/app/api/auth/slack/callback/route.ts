@@ -98,10 +98,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+create+user`)
     }
 
-    // Exchange code for session
-    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
+    // Create a session using the user's Slack ID as the JWT subject
+    const { error: sessionError } = await supabase.auth.signInWithPassword({
+      email: userData.user.profile.email,
+      password: userData.user.id, // Use Slack ID as password
+    })
+
     if (sessionError) {
-      console.error('Error exchanging code for session:', sessionError)
+      console.error('Error creating session:', sessionError)
       return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+create+session`)
     }
 
