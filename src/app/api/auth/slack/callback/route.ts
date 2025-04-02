@@ -50,15 +50,32 @@ export async function GET(request: NextRequest) {
     }
 
     const botToken = tokenData.access_token // This is the bot token
-    const userToken = tokenData.authed_user.access_token // Optional user token if user scopes were requested
+    const userToken = tokenData.authed_user.access_token // User token
     const userId = tokenData.authed_user.id
     const workspaceId = tokenData.team.id
     const workspaceName = tokenData.team.name
 
     console.log('DIAGNOSTIC (Callback): Tokens and IDs received:', { botToken: '[REDACTED]', userToken: '[REDACTED]', userId, workspaceId, workspaceName });
 
+    // --- Fetch team info to get domain ---
+    console.log('DIAGNOSTIC (Callback): Fetching team info using bot token...')
+    const teamInfoResponse = await fetch(`https://slack.com/api/team.info?team=${workspaceId}`, { // Use workspaceId from tokenData
+      headers: {
+        'Authorization': `Bearer ${botToken}`,
+      },
+    })
+    const teamInfoData = await teamInfoResponse.json()
+    console.log('DIAGNOSTIC (Callback): Team info response data:', JSON.stringify(teamInfoData, null, 2))
+
+    if (!teamInfoData.ok || !teamInfoData.team) {
+        console.error('DIAGNOSTIC (Callback): Error getting team info:', teamInfoData.error || 'Missing team data')
+        return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+get+team+info`)
+    }
+    const workspaceDomain = teamInfoData.team.domain // Extract domain
+    console.log('DIAGNOSTIC (Callback): Workspace domain extracted:', workspaceDomain)
+    // --- End fetch team info ---
+
     // We need the user's profile info (email, name, avatar)
-    // We can use the bot token which usually has broader permissions
     console.log('DIAGNOSTIC (Callback): Fetching user info using bot token...')
     const userInfoResponse = await fetch(`https://slack.com/api/users.info?user=${userId}`, {
       headers: {
@@ -70,8 +87,6 @@ export async function GET(request: NextRequest) {
 
     if (!userInfoData.ok || !userInfoData.user) {
       console.error('DIAGNOSTIC (Callback): Error getting user info:', userInfoData.error || 'Missing user data')
-      // Don't fail the whole install, maybe proceed with placeholder data?
-      // Or redirect with a specific error?
       return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+get+user+info`)
     }
 
@@ -86,9 +101,8 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || '',
       process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-      { auth: { autoRefreshToken: false, persistSession: false } } // Important for server-side admin client
+      { auth: { autoRefreshToken: false, persistSession: false } }
     )
-    // Check if admin client could be created (basic check for env vars)
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('DIAGNOSTIC (Callback): SUPABASE_SERVICE_ROLE_KEY env var is missing!')
       return NextResponse.redirect(`${origin}/auth/signin?error=Server+config+error+(Admin)`);
@@ -99,9 +113,11 @@ export async function GET(request: NextRequest) {
     const workspaceUpsertData = {
       slack_id: workspaceId,
       name: workspaceName,
+      domain: workspaceDomain, // Include domain
       bot_token: botToken,
+      token: userToken || '', // Include user token (handle potential null)
     }
-    console.log('DIAGNOSTIC (Callback): Upserting workspace with data (Admin Client):', JSON.stringify({...workspaceUpsertData, bot_token: '[REDACTED]'}, null, 2))
+    console.log('DIAGNOSTIC (Callback): Upserting workspace with data (Admin Client):', JSON.stringify({...workspaceUpsertData, bot_token: '[REDACTED]', token: '[REDACTED]'}, null, 2))
 
     const { data: workspace, error: workspaceError } = await supabaseAdmin
       .from('workspaces')
@@ -160,4 +176,4 @@ export async function GET(request: NextRequest) {
     console.error('DIAGNOSTIC (Callback): Unexpected error in OAuth callback:', error)
     return NextResponse.redirect(`${origin}/auth/signin?error=Internal+server+error`)
   }
-} 
+}
