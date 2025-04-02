@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js' // Import standard client for admin tasks
 import crypto from 'node:crypto'
 
 // Verify that the request is coming from Slack
@@ -65,45 +65,45 @@ export async function POST(request: Request) {
     if (command === '/charge') {
       console.log('DIAGNOSTIC: Starting charge command handler')
       
-      // Get the workspace ID from the user's record
-      const supabase = createClient()
-      console.log('DIAGNOSTIC: Fetching user workspace for slack_id:', userId)
-      const { data: user, error: userError } = await supabase
+      // --- Use Admin Client for DB reads to bypass RLS ---
+      const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+        { auth: { autoRefreshToken: false, persistSession: false } } // Important for server-side admin client
+      )
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.error('DIAGNOSTIC (Commands): SUPABASE_SERVICE_ROLE_KEY env var is missing!')
+        return NextResponse.json({ error: 'Server config error (Admin)' }, { status: 500 });
+      }
+      // ------------------------------------------------------
+      
+      // Get the workspace ID from the user's record using Admin Client
+      console.log('DIAGNOSTIC: Fetching user workspace for slack_id (Admin Client):', userId)
+      const { data: user, error: userError } = await supabaseAdmin // Use Admin Client
         .from('users')
         .select('workspace_id')
         .eq('slack_id', userId)
         .single()
       
       if (userError || !user) {
-        console.error('DIAGNOSTIC: Error fetching user:', userError)
-        return NextResponse.json({ error: 'User not found in DB' }, { status: 404 })
+        console.error('DIAGNOSTIC: Error fetching user (Admin Client):', userError)
+        // Respond slightly differently so we know it failed here
+        return NextResponse.json({ text: 'Error: Could not find your user record in the database. Please try reinstalling the app.' })
       }
       
       console.log('DIAGNOSTIC: Found workspace_id:', user.workspace_id)
       
-      // Get all users in the workspace for the selection
-      console.log('DIAGNOSTIC: Fetching workspace users')
-      const { data: workspaceUsers, error: usersError } = await supabase
-        .from('users')
-        .select('slack_id, display_name')
-        .eq('workspace_id', user.workspace_id)
-      
-      if (usersError) {
-        console.error('DIAGNOSTIC: Error fetching workspace users:', usersError)
-        return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
-      }
-      
-      // Get jargon terms for the workspace (including global terms)
-      console.log('DIAGNOSTIC: Fetching jargon terms')
-      const { data: jargonTerms, error: jargonError } = await supabase
+      // Get jargon terms for the workspace (including global terms) using Admin Client
+      console.log('DIAGNOSTIC: Fetching jargon terms (Admin Client)')
+      const { data: jargonTerms, error: jargonError } = await supabaseAdmin // Use Admin Client
         .from('jargon_terms')
         .select('id, term, default_cost')
         .or(`workspace_id.eq.${user.workspace_id},workspace_id.is.null`)
         .order('term')
 
       if (jargonError) {
-        console.error('DIAGNOSTIC: Error fetching jargon terms:', jargonError)
-        return NextResponse.json({ error: 'Failed to fetch jargon terms' }, { status: 500 })
+        console.error('DIAGNOSTIC: Error fetching jargon terms (Admin Client):', jargonError)
+        return NextResponse.json({ text: 'Error: Could not fetch jargon terms.' }, { status: 500 })
       }
 
       const jargonOptions = jargonTerms.map(term => ({
@@ -213,16 +213,17 @@ export async function POST(request: Request) {
       
       console.log('DIAGNOSTIC: Opening modal with view:', JSON.stringify(modalView, null, 2))
       
-      // Get the bot token from the workspace
-      const { data: workspace, error: workspaceError } = await supabase
+      // Get the bot token from the workspace using Admin Client
+      console.log('DIAGNOSTIC: Fetching workspace bot token (Admin Client)')
+      const { data: workspace, error: workspaceError } = await supabaseAdmin // Use Admin Client
         .from('workspaces')
         .select('bot_token')
         .eq('id', user.workspace_id)
         .single()
       
       if (workspaceError || !workspace) {
-        console.error('DIAGNOSTIC: Error fetching workspace:', workspaceError)
-        return NextResponse.json({ error: 'Workspace not found for bot token' }, { status: 404 })
+        console.error('DIAGNOSTIC: Error fetching workspace (Admin Client):', workspaceError)
+        return NextResponse.json({ text: 'Error: Could not find workspace data.' }, { status: 500 })
       }
       
       console.log('DIAGNOSTIC: Workspace data fetched:', JSON.stringify(workspace, null, 2))
@@ -230,7 +231,7 @@ export async function POST(request: Request) {
       
       console.log('DIAGNOSTIC: Found workspace bot token')
       
-      // Call Slack API to open the modal
+      // Call Slack API to open the modal (uses fetched bot_token)
       const response = await fetch('https://slack.com/api/views.open', {
         method: 'POST',
         headers: {
