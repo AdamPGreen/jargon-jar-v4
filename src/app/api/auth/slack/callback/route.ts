@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -81,68 +82,77 @@ export async function GET(request: NextRequest) {
 
     console.log('DIAGNOSTIC (Callback): User details extracted:', { userEmail, userDisplayName, userAvatarUrl: '[REDACTED]' })
 
-    const supabase = createClient()
+    // --- Use Admin Client for DB writes to bypass RLS ---
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+      { auth: { autoRefreshToken: false, persistSession: false } } // Important for server-side admin client
+    )
+    // Check if admin client could be created (basic check for env vars)
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('DIAGNOSTIC (Callback): SUPABASE_SERVICE_ROLE_KEY env var is missing!')
+      return NextResponse.redirect(`${origin}/auth/signin?error=Server+config+error+(Admin)`);
+    }
+    // ------------------------------------------------------
 
-    // 2. Create or update workspace
+    // 2. Create or update workspace using Admin Client
     const workspaceUpsertData = {
       slack_id: workspaceId,
       name: workspaceName,
-      // domain: tokenData.team.domain, // Domain isn't always available here, maybe fetch team.info?
-      bot_token: botToken, // Store the bot token
-      // token: userToken || '' // Store user token if available/needed
+      bot_token: botToken,
     }
-    console.log('DIAGNOSTIC (Callback): Upserting workspace with data:', JSON.stringify({...workspaceUpsertData, bot_token: '[REDACTED]'}, null, 2))
+    console.log('DIAGNOSTIC (Callback): Upserting workspace with data (Admin Client):', JSON.stringify({...workspaceUpsertData, bot_token: '[REDACTED]'}, null, 2))
 
-    const { data: workspace, error: workspaceError } = await supabase
+    const { data: workspace, error: workspaceError } = await supabaseAdmin
       .from('workspaces')
       .upsert(workspaceUpsertData, { onConflict: 'slack_id' })
-      .select('id') // Select the internal UUID
+      .select('id')
       .single()
 
     if (workspaceError || !workspace) {
-      console.error('DIAGNOSTIC (Callback): Error upserting workspace:', workspaceError)
+      console.error('DIAGNOSTIC (Callback): Error upserting workspace (Admin Client):', workspaceError)
       return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+save+workspace`)
     }
     console.log('DIAGNOSTIC (Callback): Workspace upsert successful. DB Workspace ID:', workspace.id)
 
-    // 3. Create or update user
+    // 3. Create or update user using Admin Client
     const userUpsertData = {
       slack_id: userId,
       email: userEmail,
       display_name: userDisplayName,
       avatar_url: userAvatarUrl,
-      workspace_id: workspace.id, // Link to the workspace's internal ID
+      workspace_id: workspace.id,
     }
-    console.log('DIAGNOSTIC (Callback): Upserting user with data:', JSON.stringify({...userUpsertData, avatar_url: '[REDACTED]'}, null, 2))
+    console.log('DIAGNOSTIC (Callback): Upserting user with data (Admin Client):', JSON.stringify({...userUpsertData, avatar_url: '[REDACTED]'}, null, 2))
 
-    const { error: userError } = await supabase
+    const { error: userError } = await supabaseAdmin
       .from('users')
       .upsert(userUpsertData, { onConflict: 'slack_id' })
 
     if (userError) {
-      console.error('DIAGNOSTIC (Callback): Error upserting user:', userError)
-      // Critical failure - user needs to exist for login
+      console.error('DIAGNOSTIC (Callback): Error upserting user (Admin Client):', userError)
       return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+save+user`)
     }
     console.log('DIAGNOSTIC (Callback): User upsert successful.')
 
+    // --- Switch back to Server Client for user-context operations ---
+    const supabaseServer = createServerClient()
+    // --------------------------------------------------------------
+
     // 4. Create a session for the user who installed the app
-    // We'll use the signInWithPassword hack with slack_id as password
     console.log('DIAGNOSTIC (Callback): Attempting to sign in user with email:', userEmail)
-    const { error: sessionError } = await supabase.auth.signInWithPassword({
+    const { error: sessionError } = await supabaseServer.auth.signInWithPassword({
       email: userEmail,
-      password: userId, // Use Slack ID as password
+      password: userId,
     })
 
     if (sessionError) {
       console.error('DIAGNOSTIC (Callback): Error creating session:', sessionError)
-      // Don't fail entirely, maybe redirect home but user isn't logged in?
-      // Or redirect to signin with a specific error?
       return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+create+session`)
     }
     console.log('DIAGNOSTIC (Callback): Session creation successful.')
 
-    // Success! Redirect to home page (or a success page)
+    // Success! Redirect to home page
     console.log('DIAGNOSTIC (Callback): Redirecting to origin:', origin)
     return NextResponse.redirect(origin)
 
