@@ -132,8 +132,7 @@ export async function POST(req: Request) {
                 text: '➕ Add New Jargon',
                 emoji: true
               },
-              action_id: 'add_new_jargon',
-              style: 'default'
+              action_id: 'add_new_jargon'
             }
           ]
         }
