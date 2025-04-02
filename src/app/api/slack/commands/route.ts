@@ -175,7 +175,8 @@ export async function POST(request: Request) {
                 text: 'Select jargon term',
                 emoji: true
               },
-              options: jargonOptions
+              options: jargonOptions,
+              focus_on_load: true
             },
             label: {
               type: 'plain_text',

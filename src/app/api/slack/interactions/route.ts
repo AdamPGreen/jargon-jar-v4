@@ -79,6 +79,15 @@ interface PlainTextElement {
   emoji?: boolean;
 }
 
+// Define MarkdownTextElement
+interface MarkdownTextElement {
+  type: "mrkdwn";
+  text: string;
+  verbatim?: boolean;
+}
+
+type TextElement = PlainTextElement | MarkdownTextElement;
+
 // Define View
 interface SlackView {
   id: string;
@@ -89,7 +98,7 @@ interface SlackView {
   title: PlainTextElement;
   submit?: PlainTextElement;
   close?: PlainTextElement;
-  blocks: any[];
+  blocks: SlackBlock[];
   state?: {
     values: SlackViewStateValues;
   };
@@ -150,6 +159,8 @@ interface SlackBlock {
   element?: BlockElement;
   elements?: BlockElement[];
   label?: PlainTextElement;
+  text?: TextElement;
+  optional?: boolean;
   [key: string]: unknown;
 }
 
@@ -548,116 +559,118 @@ async function handleBlockActions(payload: BlockActionsPayload) {
     // Keep user and jargon select blocks
     const initialBlocks = payload.view.blocks.slice(0, 2) as SlackBlock[]
     
-    // Create blocks for updating based on selection
-    const updatedBlocks = isNewTerm
-      ? [
-          ...initialBlocks,
-          // Show fields for new term creation
-          {
-            type: 'input',
-            block_id: 'custom_jargon_block',
-            element: {
-              type: 'plain_text_input',
-              action_id: 'custom_jargon_input',
-              placeholder: {
-                type: 'plain_text',
-                text: 'Enter the new jargon term',
-                emoji: true
-              }
-            },
-            label: {
-              type: 'plain_text',
-              text: 'New Jargon Term',
-              emoji: true
-            }
-          },
-          {
-            type: 'input',
-            block_id: 'amount_block',
-            element: {
-              type: 'plain_text_input',
-              action_id: 'amount_input',
-              placeholder: {
-                type: 'plain_text',
-                text: 'Enter amount (e.g., 1.00)',
-                emoji: true
-              }
-            },
-            label: {
-              type: 'plain_text',
-              text: 'Amount',
-              emoji: true
-            }
-          },
-          {
-            type: 'input',
-            block_id: 'description_block',
-            element: {
-              type: 'plain_text_input',
-              action_id: 'description_input',
-              placeholder: {
-                type: 'plain_text',
-                text: 'Enter a description for this term',
-                emoji: true
-              },
-              multiline: true
-            },
-            label: {
-              type: 'plain_text',
-              text: 'Description',
-              emoji: true
-            }
-          }
-        ] as SlackBlock[]
-      : await (async () => {
-          // Get jargon term details for existing term
-          const { data: jargonTerm, error: jargonError } = await supabaseServiceRole
-            .from('jargon_terms')
-            .select('term, description, default_cost')
-            .eq('id', selectedValue)
-            .single()
-            
-          if (jargonError || !jargonTerm) {
-            console.error(`Error fetching jargon term ${selectedValue}:`, jargonError)
-            throw new Error('Could not fetch jargon details')
-          }
+    let updatedBlocks: SlackBlock[] = []
 
-          return [
-            ...initialBlocks,
-            // Show read-only fields for existing term
-            {
-              type: 'section',
-              block_id: 'amount_block',
-              text: {
-                type: 'mrkdwn',
-                text: `*Amount:* $${jargonTerm.default_cost.toFixed(2)}`
-              }
-            },
-            {
-              type: 'section',
-              block_id: 'description_block',
-              text: {
-                type: 'mrkdwn',
-                text: `*Description:*\n${jargonTerm.description || '_No description available_'}`
-              }
-            },
-            // Add hidden input for amount to ensure it's included in submission
-            {
-              type: 'input',
-              block_id: 'hidden_amount_block',
-              element: {
-                type: 'plain_text_input',
-                action_id: 'amount_input',
-                initial_value: jargonTerm.default_cost.toString()
-              },
-              label: {
-                type: 'plain_text',
-                text: 'Amount',
-                emoji: true
-              }
+    if (isNewTerm) {
+      // Show fields for new term creation
+      updatedBlocks = [
+        ...initialBlocks,
+        {
+          type: 'input',
+          block_id: 'custom_jargon_block',
+          element: {
+            type: 'plain_text_input',
+            action_id: 'custom_jargon_input',
+            placeholder: {
+              type: 'plain_text',
+              text: 'Enter the new jargon term',
+              emoji: true
             }
-          ] as SlackBlock[]
-        })()
+          },
+          label: {
+            type: 'plain_text',
+            text: 'New Jargon Term',
+            emoji: true
+          }
+        },
+        {
+          type: 'input',
+          block_id: 'amount_block',
+          element: {
+            type: 'plain_text_input',
+            action_id: 'amount_input',
+            placeholder: {
+              type: 'plain_text',
+              text: 'Enter amount (e.g., 1.00)',
+              emoji: true
+            }
+          },
+          label: {
+            type: 'plain_text',
+            text: 'Amount',
+            emoji: true
+          }
+        },
+        {
+          type: 'input',
+          block_id: 'description_block',
+          element: {
+            type: 'plain_text_input',
+            action_id: 'description_input',
+            placeholder: {
+              type: 'plain_text',
+              text: 'Enter a description for this term',
+              emoji: true
+            },
+            multiline: true
+          },
+          label: {
+            type: 'plain_text',
+            text: 'Description',
+            emoji: true
+          }
+        }
+      ]
+    } else {
+      // Get jargon term details for existing term
+      const { data: jargonTerm, error: jargonError } = await supabaseServiceRole
+        .from('jargon_terms')
+        .select('term, description, default_cost')
+        .eq('id', selectedValue)
+        .single()
+        
+      if (jargonError || !jargonTerm) {
+        console.error(`Error fetching jargon term ${selectedValue}:`, jargonError)
+        return NextResponse.json({ error: 'Could not fetch jargon details' }, { status: 500 })
+      }
+
+      updatedBlocks = [
+        ...initialBlocks,
+        // Show read-only fields for existing term
+        {
+          type: 'section',
+          block_id: 'amount_block',
+          text: {
+            type: 'mrkdwn',
+            text: `*Amount:* $${jargonTerm.default_cost.toFixed(2)}`
+          }
+        },
+        {
+          type: 'section',
+          block_id: 'description_block',
+          text: {
+            type: 'mrkdwn',
+            text: `*Description:*\n${jargonTerm.description || '_No description available_'}`
+          }
+        },
+        // Add hidden input for amount to ensure it's included in submission
+        {
+          type: 'input',
+          block_id: 'hidden_amount_block',
+          optional: true,
+          element: {
+            type: 'plain_text_input',
+            action_id: 'amount_input',
+            initial_value: jargonTerm.default_cost.toString()
+          },
+          label: {
+            type: 'plain_text',
+            text: 'Amount',
+            emoji: true
+          }
+        }
+      ]
+    }
     
     // Update the view
     await slackWebClient.views.update({
