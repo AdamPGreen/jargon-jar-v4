@@ -7,6 +7,8 @@ function verifySlackRequest(request: Request, body: string): boolean {
   const timestamp = request.headers.get('x-slack-request-timestamp')
   const signature = request.headers.get('x-slack-signature')
   
+  console.log('DIAGNOSTIC: Request verification:', { timestamp, signature })
+  
   if (!timestamp || !signature) return false
   
   // Verify timestamp is within 5 minutes
@@ -32,11 +34,15 @@ function verifySlackRequest(request: Request, body: string): boolean {
 
 export async function POST(request: Request) {
   try {
+    console.log('DIAGNOSTIC: Received slash command request')
+    
     // Get the raw body for signature verification
     const body = await request.text()
+    console.log('DIAGNOSTIC: Request body:', body)
     
     // Verify the request is from Slack
     if (!verifySlackRequest(request, body)) {
+      console.log('DIAGNOSTIC: Request verification failed')
       return NextResponse.json({ error: 'Invalid request signature' }, { status: 401 })
     }
     
@@ -45,25 +51,106 @@ export async function POST(request: Request) {
     const command = formData.get('command')
     const text = formData.get('text')
     const userId = formData.get('user_id')
-    const channelId = formData.get('channel_id')
-    const teamId = formData.get('team_id')
+    const triggerId = formData.get('trigger_id')
     
-    if (command !== '/charge') {
-      return NextResponse.json({ error: 'Unknown command' }, { status: 400 })
+    console.log('DIAGNOSTIC: Parsed form data:', { command, text, userId, triggerId })
+    
+    if (!command || !triggerId) {
+      console.log('DIAGNOSTIC: Missing required fields')
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
     
-    // Get the Supabase client
-    const supabase = createClient()
+    // Handle the charge command
+    if (command === '/charge') {
+      // Open a modal for charge creation
+      const modalView = {
+        type: 'modal',
+        callback_id: 'charge_modal',
+        title: {
+          type: 'plain_text',
+          text: 'Create a Charge',
+          emoji: true
+        },
+        submit: {
+          type: 'plain_text',
+          text: 'Submit',
+          emoji: true
+        },
+        close: {
+          type: 'plain_text',
+          text: 'Cancel',
+          emoji: true
+        },
+        blocks: [
+          {
+            type: 'input',
+            block_id: 'amount_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'amount_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter amount (e.g., 1.00)',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Amount',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
+            block_id: 'description_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'description_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter description',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Description',
+              emoji: true
+            }
+          }
+        ]
+      }
+      
+      console.log('DIAGNOSTIC: Opening modal with view:', JSON.stringify(modalView, null, 2))
+      
+      // Call Slack API to open the modal
+      const response = await fetch('https://slack.com/api/views.open', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}`
+        },
+        body: JSON.stringify({
+          trigger_id: triggerId,
+          view: modalView
+        })
+      })
+      
+      const result = await response.json()
+      console.log('DIAGNOSTIC: Slack API response:', result)
+      
+      if (!result.ok) {
+        console.error('DIAGNOSTIC: Error opening modal:', result.error)
+        return NextResponse.json({ error: 'Failed to open modal' }, { status: 500 })
+      }
+      
+      // Return an empty response to acknowledge the command
+      return NextResponse.json({})
+    }
     
-    // For now, return a simple response
-    // We'll implement the full charge functionality in the next step
-    return NextResponse.json({
-      response_type: 'in_channel',
-      text: '🎯 *Jargon Jar Charge Initiated*\n\nThis is a placeholder response. The full charge functionality will be implemented in the next step.'
-    })
-    
+    return NextResponse.json({ error: 'Unknown command' }, { status: 400 })
   } catch (error) {
-    console.error('Error handling Slack command:', error)
+    console.error('DIAGNOSTIC: Error handling Slack command:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 } 
