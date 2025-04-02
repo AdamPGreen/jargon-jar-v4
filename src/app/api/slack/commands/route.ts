@@ -168,15 +168,14 @@ export async function POST(request: Request) {
             type: 'input',
             block_id: 'jargon_block',
             element: {
-              type: 'static_select',
+              type: 'external_select',
               action_id: 'jargon_select',
               placeholder: {
                 type: 'plain_text',
-                text: 'Select jargon term',
+                text: 'Select or type to search',
                 emoji: true
               },
-              options: jargonOptions,
-              focus_on_load: true
+              min_query_length: 0
             },
             label: {
               type: 'plain_text',

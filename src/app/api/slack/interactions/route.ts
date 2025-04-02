@@ -61,7 +61,14 @@ interface SlackBlockAction {
   // Add other properties as needed
 }
 
-type SlackInteractionPayload = ViewSubmissionPayload | BlockActionsPayload | ViewClosedPayload;
+interface OptionsLoadPayload extends SlackBasePayload {
+  type: 'block_suggestion';
+  block_id: string;
+  action_id: string;
+  value: string;
+}
+
+type SlackInteractionPayload = ViewSubmissionPayload | BlockActionsPayload | ViewClosedPayload | OptionsLoadPayload;
 
 // Define base interface
 interface SlackBasePayload {
@@ -200,6 +207,8 @@ export async function POST(request: Request) {
         return handleModalSubmission(parsedPayload as ViewSubmissionPayload)
       case 'block_actions':
         return handleBlockActions(parsedPayload as BlockActionsPayload)
+      case 'block_suggestion':
+        return handleOptionsLoad(parsedPayload as OptionsLoadPayload)
       case 'view_closed':
         return NextResponse.json({}) // No action needed for closed
       default:
@@ -691,5 +700,78 @@ async function handleBlockActions(payload: BlockActionsPayload) {
   } catch (error) {
     console.error('Error handling block actions:', error)
     return NextResponse.json({})
+  }
+}
+
+async function handleOptionsLoad(payload: OptionsLoadPayload) {
+  try {
+    if (payload.action_id !== 'jargon_select') {
+      return NextResponse.json({ options: [] })
+    }
+
+    const searchTerm = payload.value.toLowerCase()
+    const teamId = payload.team.id
+
+    // Get workspace ID from team ID
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      console.error('Missing Supabase URL or Service Role Key')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    const supabaseServiceRole = createClient(supabaseUrl, supabaseServiceRoleKey)
+
+    // Get workspace ID
+    const { data: workspace, error: workspaceError } = await supabaseServiceRole
+      .from('workspaces')
+      .select('id')
+      .eq('slack_id', teamId)
+      .single()
+
+    if (workspaceError || !workspace) {
+      console.error('Error fetching workspace:', workspaceError)
+      return NextResponse.json({ options: [] })
+    }
+
+    // Search jargon terms
+    const { data: jargonTerms, error: jargonError } = await supabaseServiceRole
+      .from('jargon_terms')
+      .select('id, term, default_cost')
+      .or(`workspace_id.eq.${workspace.id},workspace_id.is.null`)
+      .ilike('term', `%${searchTerm}%`)
+      .order('term')
+
+    if (jargonError) {
+      console.error('Error searching jargon terms:', jargonError)
+      return NextResponse.json({ options: [] })
+    }
+
+    // Format options
+    const options = [
+      ...jargonTerms.map(term => ({
+        text: {
+          type: 'plain_text' as const,
+          text: `${term.term} ($${term.default_cost})`,
+          emoji: true
+        },
+        value: term.id
+      }))
+    ]
+
+    // Always add the "Add new term" option
+    options.push({
+      text: {
+        type: 'plain_text' as const,
+        text: '➕ Add new term',
+        emoji: true
+      },
+      value: 'new_term'
+    })
+
+    return NextResponse.json({ options })
+  } catch (error) {
+    console.error('Error handling options load:', error)
+    return NextResponse.json({ options: [] })
   }
 } 
