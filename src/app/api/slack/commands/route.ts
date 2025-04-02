@@ -133,7 +133,7 @@ export async function POST(req: Request) {
                 emoji: true
               },
               action_id: 'add_new_jargon',
-              style: 'plain_text'
+              style: 'default'
             }
           ]
         }
