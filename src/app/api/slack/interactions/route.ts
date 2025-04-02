@@ -630,6 +630,7 @@ async function handleBlockActions(payload: BlockActionsPayload) {
         }))
       }
 
+      // Create updated blocks array
       const updatedBlocks = [
         ...payload.view.blocks.slice(0, 2), // Keep user and jargon blocks
         {
@@ -665,6 +666,9 @@ async function handleBlockActions(payload: BlockActionsPayload) {
           }
         })
       }
+
+      // Log the response for debugging
+      console.log('Updating modal with blocks:', JSON.stringify(updatedBlocks, null, 2))
 
       return new Response(JSON.stringify({
         response_action: 'update',
