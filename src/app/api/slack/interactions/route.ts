@@ -197,25 +197,33 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
     const slackWebClient = new WebClient(botToken)
 
     // --- 3. Extract Modal Data ---
-    // **IMPORTANT**: Adjust block_id and action_id names to match YOUR Block Kit definition
-    const userSelectBlockId = 'user_select_block' // Replace with your actual block ID
-    const userSelectActionId = 'user_select_action' // Replace with your actual action ID
-    const jargonSelectBlockId = 'jargon_select_block' // Replace with your actual block ID
-    const jargonSelectActionId = 'jargon_select_action' // Replace with your actual action ID
-    const amountInputBlockId = 'amount_input_block' // Replace with your actual block ID
-    const amountInputActionId = 'amount_input_action' // Replace with your actual action ID
+    // Use the actual block and action IDs from the modal
+    const userBlockId = 'user_block'
+    const userSelectId = 'user_select'
+    const jargonBlockId = 'jargon_block'
+    const jargonSelectId = 'jargon_select'
+    const amountBlockId = 'amount_block'
+    const amountInputId = 'amount_input'
+    const descriptionBlockId = 'description_block'
+    const descriptionInputId = 'description_input'
 
-    const selectedUserSlackId = viewStateValues[userSelectBlockId]?.[userSelectActionId]?.selected_user
-    const selectedJargonTermId = viewStateValues[jargonSelectBlockId]?.[jargonSelectActionId]?.selected_option?.value // This should be the DB UUID
-    const customAmountStr = viewStateValues[amountInputBlockId]?.[amountInputActionId]?.value
-    const customAmount = customAmountStr ? Number.parseFloat(customAmountStr) : null // Use Number.parseFloat
+    console.log('Modal values:', JSON.stringify(viewStateValues, null, 2))
+
+    const selectedUserSlackId = viewStateValues[userBlockId]?.[userSelectId]?.selected_user
+    const selectedJargonTermOption = viewStateValues[jargonBlockId]?.[jargonSelectId]?.selected_option
+    const selectedJargonTermId = selectedJargonTermOption?.value
+    const customAmountStr = viewStateValues[amountBlockId]?.[amountInputId]?.value
+    const descriptionText = viewStateValues[descriptionBlockId]?.[descriptionInputId]?.value
+    const customAmount = customAmountStr ? Number.parseFloat(customAmountStr) : null
+
+    console.log(`User: ${selectedUserSlackId}, Jargon: ${selectedJargonTermId}, Amount: ${customAmount}, Description: ${descriptionText}`)
 
     // Basic validation
     if (!selectedUserSlackId || !selectedJargonTermId) {
       console.error('Missing user or jargon term selection:', viewStateValues)
       const errors: { [key: string]: string } = {}
-      if (!selectedUserSlackId) errors[userSelectBlockId] = 'Please select a user.'
-      if (!selectedJargonTermId) errors[jargonSelectBlockId] = 'Please select a jargon term.'
+      if (!selectedUserSlackId) errors[userBlockId] = 'Please select a user.'
+      if (!selectedJargonTermId) errors[jargonBlockId] = 'Please select a jargon term.'
       return NextResponse.json({ response_action: 'errors', errors })
     }
 
@@ -242,7 +250,7 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
 
     if (chargeAmount === null || Number.isNaN(chargeAmount) || chargeAmount < 0) { // Use Number.isNaN
         console.error('Invalid charge amount determined:', chargeAmount)
-        const errors = { [amountInputBlockId]: 'Invalid charge amount.' }
+        const errors = { [amountBlockId]: 'Invalid charge amount.' }
         return NextResponse.json({ response_action: 'errors', errors })
     }
 
@@ -285,6 +293,7 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
         channel_id: channelId, // Slack Channel ID
         workspace_id: workspaceId, // DB UUID
         is_automatic: false,
+        message_text: descriptionText || 'No description provided', // Add the description text
       })
       .select('id') // Optionally select the new charge ID
       .single()
@@ -311,8 +320,16 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
       }
       const jargonText = termData?.term ?? 'an unspecified term'
 
-      // Use Slack IDs for mentions
-      const confirmationText = `:dollar: <@${chargingUserSlackId}> just charged <@${selectedUserSlackId}> $${chargeAmount.toFixed(2)} for using "${jargonText}"! Add it to the jar! :money_with_wings:`
+      // Create a message with the description if provided
+      let confirmationText = `:dollar: <@${chargingUserSlackId}> just charged <@${selectedUserSlackId}> $${chargeAmount.toFixed(2)} for using "${jargonText}"!`;
+      
+      // Add the description if provided
+      if (descriptionText?.trim()) {
+        confirmationText += `\n>_"${descriptionText.trim()}"_`;
+      }
+      
+      // Add a closing line
+      confirmationText += "\n:money_with_wings: Add it to the jar!";
 
       await slackWebClient.chat.postMessage({
         channel: channelId,
