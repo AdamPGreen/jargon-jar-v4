@@ -52,16 +52,86 @@ export async function POST(request: Request) {
     const text = formData.get('text')
     const userId = formData.get('user_id')
     const triggerId = formData.get('trigger_id')
+    const channelId = formData.get('channel_id')
     
-    console.log('DIAGNOSTIC: Parsed form data:', { command, text, userId, triggerId })
+    console.log('DIAGNOSTIC: Parsed form data:', { command, text, userId, triggerId, channelId })
     
-    if (!command || !triggerId) {
+    if (!command || !triggerId || !channelId) {
       console.log('DIAGNOSTIC: Missing required fields')
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
     
     // Handle the charge command
     if (command === '/charge') {
+      // Get the workspace ID from the user's session
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        console.log('DIAGNOSTIC: No session found')
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      }
+      
+      // Get the user's workspace
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('workspace_id')
+        .eq('slack_id', userId)
+        .single()
+      
+      if (userError || !user) {
+        console.error('DIAGNOSTIC: Error fetching user:', userError)
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
+      
+      // Get all users in the workspace
+      const { data: workspaceUsers, error: usersError } = await supabase
+        .from('users')
+        .select('id, slack_id, display_name, avatar_url')
+        .eq('workspace_id', user.workspace_id)
+      
+      if (usersError) {
+        console.error('DIAGNOSTIC: Error fetching workspace users:', usersError)
+        return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+      }
+      
+      // Get jargon terms for the workspace (including global terms)
+      const { data: jargonTerms, error: jargonError } = await supabase
+        .from('jargon_terms')
+        .select('id, term, description, default_cost')
+        .or(`workspace_id.eq.${user.workspace_id},workspace_id.is.null`)
+        .order('term')
+      
+      if (jargonError) {
+        console.error('DIAGNOSTIC: Error fetching jargon terms:', jargonError)
+        return NextResponse.json({ error: 'Failed to fetch jargon terms' }, { status: 500 })
+      }
+      
+      // Create jargon term options for the dropdown
+      const jargonOptions = jargonTerms.map(term => ({
+        text: {
+          type: 'plain_text',
+          text: `${term.term} ($${term.default_cost})`,
+          emoji: true
+        },
+        value: term.id,
+        description: {
+          type: 'plain_text',
+          text: term.description || 'No description available',
+          emoji: true
+        }
+      }))
+      
+      // Create user options for the dropdown
+      const userOptions = workspaceUsers.map(u => ({
+        text: {
+          type: 'plain_text',
+          text: u.display_name,
+          emoji: true
+        },
+        value: u.slack_id
+      }))
+      
       // Open a modal for charge creation
       const modalView = {
         type: 'modal',
@@ -82,6 +152,43 @@ export async function POST(request: Request) {
           emoji: true
         },
         blocks: [
+          {
+            type: 'input',
+            block_id: 'user_block',
+            element: {
+              type: 'users_select',
+              action_id: 'user_select',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Select a user',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Who used jargon?',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
+            block_id: 'jargon_block',
+            element: {
+              type: 'static_select',
+              action_id: 'jargon_select',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Select jargon term',
+                emoji: true
+              },
+              options: jargonOptions
+            },
+            label: {
+              type: 'plain_text',
+              text: 'What jargon was used?',
+              emoji: true
+            }
+          },
           {
             type: 'input',
             block_id: 'amount_block',
@@ -132,7 +239,10 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           trigger_id: triggerId,
-          view: modalView
+          view: {
+            ...modalView,
+            private_metadata: channelId
+          }
         })
       })
       

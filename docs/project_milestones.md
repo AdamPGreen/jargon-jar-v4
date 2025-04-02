@@ -235,3 +235,42 @@
 
 ### Next Session Prompt
 "Now that we have our app deployed to production, let's configure the `/charge` slash command in the Slack App settings. We need to point it to our production URL and test the basic functionality. Can you help me with that?"
+
+## Slack Integration Progress (Week 5)
+
+### Completed
+- Successfully configured Slack App settings:
+  - Set up OAuth scopes for bot token
+  - Configured slash command `/charge` endpoint
+  - Enabled interactive components
+  - Set up proper environment variables
+- Implemented slash command handler:
+  - Created `/api/slack/commands/route.ts`
+  - Added request verification
+  - Implemented modal opening functionality
+- Created interactions handler:
+  - Set up `/api/slack/interactions/route.ts`
+  - Added basic modal submission handling
+  - Implemented request verification
+
+### Technical Details
+- Using Slack's Block Kit for modal UI
+- Implemented proper request verification using Slack's signing secret
+- Added diagnostic logging for debugging
+- Configured proper CORS headers in `next.config.js`
+
+### Next Steps
+- Implement charge creation logic in the interactions handler
+- Add user selection to the modal
+- Create jargon term selection interface
+- Implement charge confirmation flow
+- Add error handling and user feedback
+
+### Next Session Prompt
+"Now that we have the `/charge` command and modal working, let's implement the charge creation logic. We need to:
+1. Add user selection to the modal
+2. Create a jargon term selection interface
+3. Implement the charge creation in the database
+4. Add confirmation messages back to the Slack channel
+
+Can you help me with that?"
