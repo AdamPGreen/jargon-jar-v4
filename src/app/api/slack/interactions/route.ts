@@ -519,7 +519,7 @@ async function handleBlockActions(payload: BlockActionsPayload) {
       const selectedTerm = metadata.jargon_terms.find((term: any) => term.id === selectedJargonId)
 
       if (!selectedTerm) {
-        return null
+        return new Response(JSON.stringify({ error: 'Term not found' }))
       }
 
       // Update the blocks to include description and pre-populate amount
@@ -554,13 +554,13 @@ async function handleBlockActions(payload: BlockActionsPayload) {
         }
       ]
 
-      return {
+      return new Response(JSON.stringify({
         response_action: 'update',
         view: {
           ...payload.view,
           blocks: updatedBlocks
         }
-      }
+      }))
     } else if (actionId === 'add_new_jargon') {
       // Open new modal for jargon creation
       const newJargonModal = {
@@ -659,16 +659,16 @@ async function handleBlockActions(payload: BlockActionsPayload) {
         private_metadata: payload.view.private_metadata // Preserve metadata from original modal
       }
 
-      return {
+      return new Response(JSON.stringify({
         response_action: 'push',
         view: newJargonModal
-      }
+      }))
     }
 
-    return null
+    return new Response(JSON.stringify({}))
   } catch (error) {
     console.error('Error handling block actions:', error)
-    return null
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
   }
 }
 
@@ -745,7 +745,6 @@ async function handleOptionsLoad(payload: OptionsLoadPayload) {
   }
 }
 
-// Add handler for new jargon modal submissions
 async function handleViewSubmission(payload: any) {
   try {
     if (payload.view.callback_id === 'new_jargon_modal') {
@@ -775,7 +774,12 @@ async function handleViewSubmission(payload: any) {
         .single()
 
       if (termError) {
-        throw new Error(`Failed to create jargon term: ${termError.message}`)
+        return new Response(JSON.stringify({
+          response_action: 'errors',
+          errors: {
+            term_block: `Failed to create jargon term: ${termError.message}`
+          }
+        }))
       }
 
       // Create charge
@@ -790,23 +794,27 @@ async function handleViewSubmission(payload: any) {
         })
 
       if (chargeError) {
-        throw new Error(`Failed to create charge: ${chargeError.message}`)
+        return new Response(JSON.stringify({
+          response_action: 'errors',
+          errors: {
+            term_block: `Failed to create charge: ${chargeError.message}`
+          }
+        }))
       }
 
-      return {
+      return new Response(JSON.stringify({
         response_action: 'clear'
-      }
+      }))
     }
 
-    // Handle other modal submissions...
-    return null
+    return new Response(JSON.stringify({}))
   } catch (error) {
     console.error('Error handling view submission:', error)
-    return {
+    return new Response(JSON.stringify({
       response_action: 'errors',
       errors: {
         term_block: 'Failed to create jargon term. Please try again.'
       }
-    }
+    }))
   }
 } 
