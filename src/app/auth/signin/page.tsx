@@ -10,16 +10,7 @@ export default function SignIn() {
       'identity.basic',
       'identity.email',
       'identity.avatar',
-      'identity.team',
-      'app_mentions:read',
-      'channels:history',
-      'chat:write',
-      'commands',
-      'groups:history',
-      'im:write',
-      'team:read',
-      'users:read',
-      'users:read.email'
+      'identity.team'
     ].join(',')
 
     const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`
