@@ -63,8 +63,11 @@ export async function POST(request: Request) {
     
     // Handle the charge command
     if (command === '/charge') {
+      console.log('DIAGNOSTIC: Starting charge command handler')
+      
       // Get the workspace ID from the user's session
       const supabase = createClient()
+      console.log('DIAGNOSTIC: Getting user session')
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
@@ -73,6 +76,7 @@ export async function POST(request: Request) {
       }
       
       // Get the user's workspace
+      console.log('DIAGNOSTIC: Fetching user workspace for slack_id:', userId)
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('workspace_id')
@@ -84,7 +88,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
       }
       
+      console.log('DIAGNOSTIC: Found workspace_id:', user.workspace_id)
+      
       // Get all users in the workspace
+      console.log('DIAGNOSTIC: Fetching workspace users')
       const { data: workspaceUsers, error: usersError } = await supabase
         .from('users')
         .select('id, slack_id, display_name, avatar_url')
@@ -96,6 +103,7 @@ export async function POST(request: Request) {
       }
       
       // Get jargon terms for the workspace (including global terms)
+      console.log('DIAGNOSTIC: Fetching jargon terms')
       const { data: jargonTerms, error: jargonError } = await supabase
         .from('jargon_terms')
         .select('id, term, description, default_cost')
@@ -106,6 +114,8 @@ export async function POST(request: Request) {
         console.error('DIAGNOSTIC: Error fetching jargon terms:', jargonError)
         return NextResponse.json({ error: 'Failed to fetch jargon terms' }, { status: 500 })
       }
+      
+      console.log('DIAGNOSTIC: Found jargon terms:', jargonTerms.length)
       
       // Create jargon term options for the dropdown
       const jargonOptions = jargonTerms.map(term => ({
@@ -120,16 +130,6 @@ export async function POST(request: Request) {
           text: term.description || 'No description available',
           emoji: true
         }
-      }))
-      
-      // Create user options for the dropdown
-      const userOptions = workspaceUsers.map(u => ({
-        text: {
-          type: 'plain_text',
-          text: u.display_name,
-          emoji: true
-        },
-        value: u.slack_id
       }))
       
       // Open a modal for charge creation
@@ -230,12 +230,26 @@ export async function POST(request: Request) {
       
       console.log('DIAGNOSTIC: Opening modal with view:', JSON.stringify(modalView, null, 2))
       
+      // Get the bot token from the workspace
+      const { data: workspace, error: workspaceError } = await supabase
+        .from('workspaces')
+        .select('bot_token')
+        .eq('id', user.workspace_id)
+        .single()
+      
+      if (workspaceError || !workspace) {
+        console.error('DIAGNOSTIC: Error fetching workspace:', workspaceError)
+        return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
+      }
+      
+      console.log('DIAGNOSTIC: Found workspace bot token')
+      
       // Call Slack API to open the modal
       const response = await fetch('https://slack.com/api/views.open', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}`
+          'Authorization': `Bearer ${workspace.bot_token}`
         },
         body: JSON.stringify({
           trigger_id: triggerId,
