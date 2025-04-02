@@ -156,18 +156,28 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
 
   try {
     // --- 1. Parse Metadata ---
-    let privateMetadata: PrivateMetadata
+    let privateMetadata: PrivateMetadata;
+    let channelId: string;
+    let chargingUserSlackId: string;
+    
+    // First try to parse it as JSON
     try {
-      privateMetadata = JSON.parse(payload.view.private_metadata)
-    } catch (e) {
-      console.error('Failed to parse private_metadata:', payload.view.private_metadata, e)
-      return NextResponse.json({ error: 'Invalid metadata format' }, { status: 400 })
+      privateMetadata = JSON.parse(payload.view.private_metadata);
+      channelId = privateMetadata.channel_id;
+      chargingUserSlackId = privateMetadata.charging_user_id;
+    } catch (parseError) {
+      // If it's not valid JSON, assume it's just the channel ID string
+      console.log(`private_metadata is not JSON, treating as channel ID: ${payload.view.private_metadata}`);
+      channelId = payload.view.private_metadata;
+      // Default to the user who submitted the modal as the charging user
+      chargingUserSlackId = payload.user.id;
     }
-    const { channel_id: channelId, charging_user_id: chargingUserSlackId } = privateMetadata // Renamed for clarity
-
-    if (!channelId || !chargingUserSlackId) {
-      console.error('Missing channel_id or charging_user_id in private_metadata', privateMetadata)
-      return NextResponse.json({ error: 'Missing required metadata' }, { status: 400 })
+    
+    console.log(`Using channel ID: ${channelId}, charging user: ${chargingUserSlackId}`);
+  
+    if (!channelId) {
+      console.error('Missing channel_id in private_metadata', payload.view.private_metadata);
+      return NextResponse.json({ error: 'Missing required channel ID' }, { status: 400 });
     }
 
     // --- 2. Fetch Workspace/Bot Token ---
