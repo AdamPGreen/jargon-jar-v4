@@ -510,171 +510,165 @@ async function handleModalSubmission(payload: ViewSubmissionPayload) { // Use in
 }
 
 async function handleBlockActions(payload: BlockActionsPayload) {
-  // Extract the action that was performed
-  const actions = payload.actions || []
-  if (actions.length === 0) {
-    return NextResponse.json({})
-  }
-
-  // Only focus on jargon select actions
-  const action = actions[0]
-  const actionId = action.action_id
-  
-  // We're only interested in jargon selection to update other fields
-  if (actionId !== 'jargon_select') {
-    return NextResponse.json({})
-  }
-  
   try {
-    // Extract necessary data
-    const teamId = payload.team.id
-    const viewId = payload.view.id
-    const selectedValue = action.selected_option?.value
-    
-    if (!selectedValue) {
-      console.log('No jargon selected, not updating other fields')
-      return NextResponse.json({})
-    }
+    const actionId = payload.actions[0].action_id
 
-    // Check if this is a new term selection
-    const isNewTerm = selectedValue === 'new_term'
-    
-    // Get Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      console.error('Missing Supabase URL or Service Role Key')
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
-    }
-    
-    const supabaseServiceRole = createClient(supabaseUrl, supabaseServiceRoleKey)
-    
-    // Get workspace bot token
-    const { data: workspace, error: workspaceError } = await supabaseServiceRole
-      .from('workspaces')
-      .select('bot_token')
-      .eq('slack_id', teamId)
-      .single()
-      
-    if (workspaceError || !workspace || !workspace.bot_token) {
-      console.error(`Error fetching workspace or bot token for team ${teamId}:`, workspaceError)
-      return NextResponse.json({ error: 'Could not retrieve workspace info' }, { status: 500 })
-    }
+    if (actionId === 'jargon_select') {
+      const selectedJargonId = payload.actions[0].selected_option.value
+      const metadata = JSON.parse(payload.view.private_metadata)
+      const selectedTerm = metadata.jargon_terms.find((term: any) => term.id === selectedJargonId)
 
-    const botToken = workspace.bot_token
-    const slackWebClient = new WebClient(botToken)
-    
-    // Keep user and jargon select blocks
-    const initialBlocks = payload.view.blocks.slice(0, 2) as SlackBlock[]
-    
-    let updatedBlocks: SlackBlock[] = []
-
-    if (isNewTerm) {
-      // Show fields for new term creation
-      updatedBlocks = [
-        ...initialBlocks,
-        {
-          type: 'input',
-          block_id: 'amount_block',
-          element: {
-            type: 'plain_text_input',
-            action_id: 'amount_input',
-            placeholder: {
-              type: 'plain_text',
-              text: 'Enter amount (e.g., 1.00)',
-              emoji: true
-            }
-          },
-          label: {
-            type: 'plain_text',
-            text: 'Amount',
-            emoji: true
-          }
-        },
-        {
-          type: 'input',
-          block_id: 'description_block',
-          element: {
-            type: 'plain_text_input',
-            action_id: 'description_input',
-            placeholder: {
-              type: 'plain_text',
-              text: 'Enter a description for this term',
-              emoji: true
-            },
-            multiline: true
-          },
-          label: {
-            type: 'plain_text',
-            text: 'Description',
-            emoji: true
-          }
-        }
-      ]
-    } else {
-      // Get jargon term details for existing term
-      const { data: jargonTerm, error: jargonError } = await supabaseServiceRole
-        .from('jargon_terms')
-        .select('term, description, default_cost')
-        .eq('id', selectedValue)
-        .single()
-        
-      if (jargonError || !jargonTerm) {
-        console.error(`Error fetching jargon term ${selectedValue}:`, jargonError)
-        return NextResponse.json({ error: 'Could not fetch jargon details' }, { status: 500 })
+      if (!selectedTerm) {
+        return null
       }
 
-      updatedBlocks = [
-        ...initialBlocks,
-        {
-          type: 'input',
-          block_id: 'amount_block',
-          element: {
-            type: 'plain_text_input',
-            action_id: 'amount_input',
-            initial_value: jargonTerm.default_cost.toString(),
-            placeholder: {
-              type: 'plain_text',
-              text: 'Enter amount',
-              emoji: true
-            }
-          },
-          label: {
-            type: 'plain_text',
-            text: 'Amount',
-            emoji: true
-          }
-        },
+      // Update the blocks to include description and pre-populate amount
+      const updatedBlocks = [
+        ...payload.view.blocks.slice(0, 2), // Keep user and jargon select blocks
         {
           type: 'section',
           block_id: 'description_block',
           text: {
             type: 'mrkdwn',
-            text: `*Description:*\n${jargonTerm.description || '_No description available_'}`
+            text: `*Description:* ${selectedTerm.description}`
+          }
+        },
+        {
+          type: 'input',
+          block_id: 'amount_block',
+          element: {
+            type: 'plain_text_input',
+            action_id: 'amount_input',
+            initial_value: selectedTerm.default_cost.toString(),
+            placeholder: {
+              type: 'plain_text',
+              text: 'Enter charge amount',
+              emoji: true
+            }
+          },
+          label: {
+            type: 'plain_text',
+            text: 'Charge amount ($)',
+            emoji: true
           }
         }
       ]
-    }
-    
-    // Update the view
-    await slackWebClient.views.update({
-      view_id: viewId,
-      hash: payload.view.hash,
-      view: {
-        type: 'modal',
-        callback_id: payload.view.callback_id,
-        title: payload.view.title,
-        submit: payload.view.submit,
-        close: payload.view.close,
-        private_metadata: payload.view.private_metadata,
-        blocks: updatedBlocks
+
+      return {
+        response_action: 'update',
+        view: {
+          ...payload.view,
+          blocks: updatedBlocks
+        }
       }
-    })
-    
-    return NextResponse.json({})
+    } else if (actionId === 'add_new_jargon') {
+      // Open new modal for jargon creation
+      const newJargonModal = {
+        type: 'modal',
+        callback_id: 'new_jargon_modal',
+        title: {
+          type: 'plain_text',
+          text: 'Add New Jargon',
+          emoji: true
+        },
+        submit: {
+          type: 'plain_text',
+          text: 'Create & Charge',
+          emoji: true
+        },
+        close: {
+          type: 'plain_text',
+          text: 'Cancel',
+          emoji: true
+        },
+        blocks: [
+          {
+            type: 'input',
+            block_id: 'user_block',
+            element: {
+              type: 'users_select',
+              action_id: 'user_select',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Select a user',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Who used jargon?',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
+            block_id: 'term_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'term_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter the jargon term',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'New Jargon Term',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
+            block_id: 'description_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'description_input',
+              multiline: true,
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter a description of this term',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Description',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
+            block_id: 'amount_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'amount_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter charge amount',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Charge amount ($)',
+              emoji: true
+            }
+          }
+        ],
+        private_metadata: payload.view.private_metadata // Preserve metadata from original modal
+      }
+
+      return {
+        response_action: 'push',
+        view: newJargonModal
+      }
+    }
+
+    return null
   } catch (error) {
     console.error('Error handling block actions:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return null
   }
 }
 
@@ -748,5 +742,71 @@ async function handleOptionsLoad(payload: OptionsLoadPayload) {
   } catch (error) {
     console.error('Error handling options load:', error)
     return NextResponse.json({ options: [] })
+  }
+}
+
+// Add handler for new jargon modal submissions
+async function handleViewSubmission(payload: any) {
+  try {
+    if (payload.view.callback_id === 'new_jargon_modal') {
+      // Handle new jargon creation
+      const values = payload.view.state.values
+      const term = values.term_block.term_input.value
+      const description = values.description_block.description_input.value
+      const amount = values.amount_block.amount_input.value
+      const userId = values.user_block.user_select.selected_user
+
+      // Create new jargon term
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+
+      const { data: newTerm, error: termError } = await supabase
+        .from('jargon_terms')
+        .insert({
+          term,
+          description,
+          default_cost: amount,
+          created_by: payload.user.id,
+          workspace_id: payload.team.id
+        })
+        .select()
+        .single()
+
+      if (termError) {
+        throw new Error(`Failed to create jargon term: ${termError.message}`)
+      }
+
+      // Create charge
+      const { error: chargeError } = await supabase
+        .from('charges')
+        .insert({
+          charged_user_id: userId,
+          charging_user_id: payload.user.id,
+          jargon_term_id: newTerm.id,
+          amount,
+          workspace_id: payload.team.id
+        })
+
+      if (chargeError) {
+        throw new Error(`Failed to create charge: ${chargeError.message}`)
+      }
+
+      return {
+        response_action: 'clear'
+      }
+    }
+
+    // Handle other modal submissions...
+    return null
+  } catch (error) {
+    console.error('Error handling view submission:', error)
+    return {
+      response_action: 'errors',
+      errors: {
+        term_block: 'Failed to create jargon term. Please try again.'
+      }
+    }
   }
 } 
