@@ -171,6 +171,17 @@ interface SlackBlock {
   [key: string]: unknown;
 }
 
+interface JargonTerm {
+  id: string;
+  term: string;
+  description: string;
+  default_cost: number;
+}
+
+interface ModalMetadata {
+  jargon_terms: JargonTerm[];
+}
+
 export async function POST(request: Request) {
   try {
     // Get the raw body for signature verification
@@ -511,12 +522,15 @@ async function handleModalSubmission(payload: ViewSubmissionPayload) { // Use in
 
 async function handleBlockActions(payload: BlockActionsPayload) {
   try {
-    const actionId = payload.actions[0].action_id
+    const action = payload.actions[0]
+    if (!action) {
+      return new Response(JSON.stringify({ error: 'No action provided' }))
+    }
 
-    if (actionId === 'jargon_select') {
-      const selectedJargonId = payload.actions[0].selected_option.value
-      const metadata = JSON.parse(payload.view.private_metadata)
-      const selectedTerm = metadata.jargon_terms.find((term: any) => term.id === selectedJargonId)
+    if (action.action_id === 'jargon_select' && action.selected_option) {
+      const selectedJargonId = action.selected_option.value
+      const metadata = JSON.parse(payload.view.private_metadata) as ModalMetadata
+      const selectedTerm = metadata.jargon_terms.find((term) => term.id === selectedJargonId)
 
       if (!selectedTerm) {
         return new Response(JSON.stringify({ error: 'Term not found' }))
@@ -561,7 +575,9 @@ async function handleBlockActions(payload: BlockActionsPayload) {
           blocks: updatedBlocks
         }
       }))
-    } else if (actionId === 'add_new_jargon') {
+    }
+
+    if (action.action_id === 'add_new_jargon') {
       // Open new modal for jargon creation
       const newJargonModal = {
         type: 'modal',
@@ -745,7 +761,7 @@ async function handleOptionsLoad(payload: OptionsLoadPayload) {
   }
 }
 
-async function handleViewSubmission(payload: any) {
+async function handleViewSubmission(payload: ViewSubmissionPayload) {
   try {
     if (payload.view.callback_id === 'new_jargon_modal') {
       // Handle new jargon creation
@@ -757,8 +773,8 @@ async function handleViewSubmission(payload: any) {
 
       // Create new jargon term
       const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
       )
 
       const { data: newTerm, error: termError } = await supabase
