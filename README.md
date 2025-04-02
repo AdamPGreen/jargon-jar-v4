@@ -2,6 +2,33 @@
 
 An anti-corporate, snarky Slack app that functions as a virtual "swear jar" for corporate jargon. Users can charge colleagues for using business buzzwords, track jargon usage, and view leaderboards of the worst offenders.
 
+## Features
+
+### Slack Integration
+- OAuth integration with Slack workspaces
+- `/charge` slash command for charging users for jargon
+- Interactive modals for selecting users and jargon terms
+- Support for adding new jargon terms directly from the charge modal
+
+### Jargon Modal UX
+The Slack modal for the `/charge` command features an improved user experience:
+
+#### For Existing Jargon Terms:
+- When a term is selected from the dropdown, the charge amount is automatically populated
+- The description field displays the term definition
+- Users can still modify the charge amount if needed
+
+#### For New Jargon Terms:
+- When a user enters a term that's not in the dropdown, they can add it directly
+- Users provide a description and default charge amount for the new term
+- Upon submission, the charge is created AND the new term is added to the jargon library
+
+## Technical Implementation
+- Next.js 14 with App Router for server-side rendering
+- Supabase for database, authentication, and storage
+- Slack API integration for slash commands and interactive elements
+- Serverless functions deployed on Vercel
+
 ## Getting Started
 
 ### Prerequisites
@@ -27,7 +54,15 @@ An anti-corporate, snarky Slack app that functions as a virtual "swear jar" for 
    ```bash
    cp .env.local.example .env.local
    ```
-   Then edit `.env.local` with your Supabase and Slack credentials.
+   Then edit `.env.local` with your Supabase and Slack credentials:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+   SUPABASE_SERVICE_ROLE_KEY=<your-supabase-service-role-key>
+   SLACK_CLIENT_ID=<your-slack-client-id>
+   SLACK_CLIENT_SECRET=<your-slack-client-secret>
+   SLACK_SIGNING_SECRET=<your-slack-signing-secret>
+   ```
 
 4. Start the development server:
    ```bash
@@ -42,6 +77,9 @@ An anti-corporate, snarky Slack app that functions as a virtual "swear jar" for 
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
+
+## Deployment
+The application is automatically deployed to Vercel on commits to the main branch.
 
 ## Project Structure
 

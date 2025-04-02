@@ -174,6 +174,30 @@ export async function POST(request: Request) {
           },
           {
             type: 'input',
+            block_id: 'custom_jargon_block',
+            optional: true,
+            element: {
+              type: 'plain_text_input',
+              action_id: 'custom_jargon_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Or type a new jargon term',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'New Jargon Term',
+              emoji: true
+            },
+            hint: {
+              type: 'plain_text',
+              text: 'If the term isn\'t in the dropdown, add a new one here',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
             block_id: 'amount_block',
             element: {
               type: 'plain_text_input',
@@ -188,6 +212,11 @@ export async function POST(request: Request) {
               type: 'plain_text',
               text: 'Amount',
               emoji: true
+            },
+            hint: {
+              type: 'plain_text',
+              text: 'For existing terms, this will be auto-filled',
+              emoji: true
             }
           },
           {
@@ -200,11 +229,17 @@ export async function POST(request: Request) {
                 type: 'plain_text',
                 text: 'Enter description',
                 emoji: true
-              }
+              },
+              multiline: true
             },
             label: {
               type: 'plain_text',
               text: 'Description',
+              emoji: true
+            },
+            hint: {
+              type: 'plain_text',
+              text: 'For new terms, this becomes the term definition',
               emoji: true
             }
           }

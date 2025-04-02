@@ -36,8 +36,8 @@ function verifySlackRequest(request: Request, body: string): boolean {
 interface SlackUser {
   id: string;
   username: string;
-  name: string;
-  team_id: string;
+  name?: string;
+  team_id?: string;
 }
 
 interface SlackTeam {
@@ -46,10 +46,78 @@ interface SlackTeam {
 }
 
 interface SlackBlockAction {
+  action_id: string;
+  block_id: string;
+  value?: string;
   selected_user?: string;
-  selected_option?: SlackSelectedOption;
-  value?: string; // For input fields
-  // Add other action types if needed
+  selected_option?: {
+    value: string;
+    text: {
+      type: string;
+      text: string;
+      emoji?: boolean;
+    };
+  };
+  // Add other properties as needed
+}
+
+type SlackInteractionPayload = ViewSubmissionPayload | BlockActionsPayload | ViewClosedPayload;
+
+// Define base interface
+interface SlackBasePayload {
+  type: string;
+  token: string;
+  team: SlackTeam;
+  user: SlackUser;
+  api_app_id: string;
+}
+
+// Define PlainTextElement
+interface PlainTextElement {
+  type: "plain_text";
+  text: string;
+  emoji?: boolean;
+}
+
+// Define View
+interface SlackView {
+  id: string;
+  type: string;
+  callback_id: string;
+  private_metadata: string;
+  hash?: string;
+  title: PlainTextElement;
+  submit?: PlainTextElement;
+  close?: PlainTextElement;
+  blocks: any[];
+  state?: {
+    values: SlackViewStateValues;
+  };
+}
+
+interface ViewSubmissionPayload extends SlackBasePayload {
+  type: 'view_submission';
+  view: SlackView & {
+    state: {
+      values: SlackViewStateValues;
+    };
+  };
+}
+
+interface ViewClosedPayload extends SlackBasePayload {
+  type: 'view_closed';
+  view: SlackView;
+}
+
+interface BlockActionsPayload extends SlackBasePayload {
+  type: 'block_actions';
+  container: {
+    type: string;
+    view_id: string;
+  };
+  trigger_id: string;
+  view: SlackView;
+  actions: SlackBlockAction[];
 }
 
 interface SlackSelectedOption {
@@ -63,31 +131,26 @@ interface SlackViewStateValues {
   };
 }
 
-interface SlackView {
-  id: string;
-  type: string; // e.g., 'modal'
-  callback_id: string;
-  private_metadata: string; // JSON stringified data
-  state: {
-    values: SlackViewStateValues;
-  };
-  // Add other view properties if needed
-}
-
-interface SlackInteractionPayload {
-  type: 'view_submission' | 'view_closed' | string; // Extend with other interaction types
-  token: string;
-  action_ts: string;
-  team: SlackTeam;
-  user: SlackUser;
-  api_app_id: string;
-  view: SlackView;
-  // Add other payload properties if needed
-}
-
 interface PrivateMetadata {
     channel_id: string;
     charging_user_id: string; // This is the Slack ID
+}
+
+// Simplify the BlockElement to avoid the 'any' error
+interface BlockElement {
+  type: string;
+  action_id: string;
+  [key: string]: unknown;
+}
+
+// Update SlackBlock to use the simplified BlockElement
+interface SlackBlock {
+  type: string;
+  block_id: string;
+  element?: BlockElement;
+  elements?: BlockElement[];
+  label?: PlainTextElement;
+  [key: string]: unknown;
 }
 
 export async function POST(request: Request) {
@@ -114,18 +177,22 @@ export async function POST(request: Request) {
     
     console.log(`Extracted payload string: ${payloadStr.substring(0, 100)}...`)
     
-    // Parse the payload as JSON
-    const payload: SlackInteractionPayload = JSON.parse(payloadStr)
-    console.log(`Parsed payload type: ${payload.type}`)
+    // Parse the payload as JSON and determine its type
+    const parsedPayload = JSON.parse(payloadStr);
+    const payloadType = parsedPayload.type;
+    
+    console.log(`Parsed payload type: ${payloadType}`)
     
     // Handle different types of interactions
-    switch (payload.type) {
+    switch (payloadType) {
       case 'view_submission':
-        return handleModalSubmission(payload)
+        return handleModalSubmission(parsedPayload as ViewSubmissionPayload)
+      case 'block_actions':
+        return handleBlockActions(parsedPayload as BlockActionsPayload)
       case 'view_closed':
         return NextResponse.json({}) // No action needed for closed
       default:
-        console.warn('Unknown interaction type:', payload.type)
+        console.warn('Unknown interaction type:', payloadType)
         return NextResponse.json({ error: 'Unknown interaction type' }, { status: 400 })
     }
   } catch (error) {
@@ -134,7 +201,7 @@ export async function POST(request: Request) {
   }
 }
 
-async function handleModalSubmission(payload: SlackInteractionPayload) { // Use interface
+async function handleModalSubmission(payload: ViewSubmissionPayload) { // Use interface
   console.log('Handling modal submission for callback_id:', payload.view.callback_id)
 
   if (payload.view.callback_id !== 'charge_modal') {
@@ -202,6 +269,8 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
     const userSelectId = 'user_select'
     const jargonBlockId = 'jargon_block'
     const jargonSelectId = 'jargon_select'
+    const customJargonBlockId = 'custom_jargon_block'
+    const customJargonInputId = 'custom_jargon_input'
     const amountBlockId = 'amount_block'
     const amountInputId = 'amount_input'
     const descriptionBlockId = 'description_block'
@@ -212,49 +281,111 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
     const selectedUserSlackId = viewStateValues[userBlockId]?.[userSelectId]?.selected_user
     const selectedJargonTermOption = viewStateValues[jargonBlockId]?.[jargonSelectId]?.selected_option
     const selectedJargonTermId = selectedJargonTermOption?.value
+    const customJargonTerm = viewStateValues[customJargonBlockId]?.[customJargonInputId]?.value
     const customAmountStr = viewStateValues[amountBlockId]?.[amountInputId]?.value
     const descriptionText = viewStateValues[descriptionBlockId]?.[descriptionInputId]?.value
     const customAmount = customAmountStr ? Number.parseFloat(customAmountStr) : null
 
-    console.log(`User: ${selectedUserSlackId}, Jargon: ${selectedJargonTermId}, Amount: ${customAmount}, Description: ${descriptionText}`)
+    console.log(`User: ${selectedUserSlackId}, Jargon: ${selectedJargonTermId}, Custom Jargon: ${customJargonTerm}, Amount: ${customAmount}, Description: ${descriptionText}`)
 
     // Basic validation
-    if (!selectedUserSlackId || !selectedJargonTermId) {
-      console.error('Missing user or jargon term selection:', viewStateValues)
+    if (!selectedUserSlackId) {
+      console.error('Missing user selection:', viewStateValues)
       const errors: { [key: string]: string } = {}
-      if (!selectedUserSlackId) errors[userBlockId] = 'Please select a user.'
-      if (!selectedJargonTermId) errors[jargonBlockId] = 'Please select a jargon term.'
+      errors[userBlockId] = 'Please select a user.'
       return NextResponse.json({ response_action: 'errors', errors })
     }
+    
+    // Check if we're using an existing term or creating a new one
+    const isNewJargonTerm = !selectedJargonTermId && customJargonTerm;
+    let jargonTermId = selectedJargonTermId;
+    
+    if (!isNewJargonTerm && !selectedJargonTermId) {
+      console.error('Missing jargon term selection:', viewStateValues)
+      const errors: { [key: string]: string } = {}
+      errors[jargonBlockId] = 'Please select a jargon term or add a new one.'
+      return NextResponse.json({ response_action: 'errors', errors })
+    }
+    
+    // --- 4. Handle New Jargon Term (if applicable) ---
+    if (isNewJargonTerm) {
+      console.log(`Creating new jargon term: "${customJargonTerm}"`)
+      
+      // Validate required fields for new term
+      if (!customAmount || Number.isNaN(customAmount) || customAmount <= 0) {
+        console.error('Invalid charge amount for new term:', customAmount)
+        const errors: { [key: string]: string } = {}
+        errors[amountBlockId] = 'Please enter a valid amount for the new jargon term.'
+        return NextResponse.json({ response_action: 'errors', errors })
+      }
+      
+      // Fetch the charging user's DB ID for created_by field
+      const { data: chargingUser, error: chargingUserError } = await supabaseServiceRole
+        .from('users')
+        .select('id')
+        .eq('slack_id', chargingUserSlackId)
+        .eq('workspace_id', workspaceId)
+        .single()
+        
+      if (chargingUserError || !chargingUser) {
+        console.error(`Error fetching charging user ID for Slack ID ${chargingUserSlackId}:`, chargingUserError)
+        return NextResponse.json({ error: 'Could not identify charging user' }, { status: 500 })
+      }
+      
+      // Create the new jargon term
+      const { data: newJargonTerm, error: createJargonError } = await supabaseServiceRole
+        .from('jargon_terms')
+        .insert({
+          term: customJargonTerm,
+          description: descriptionText || 'No description provided',
+          default_cost: customAmount,
+          created_by: chargingUser.id,
+          workspace_id: workspaceId
+        })
+        .select('id')
+        .single()
+        
+      if (createJargonError || !newJargonTerm) {
+        console.error('Error creating new jargon term:', createJargonError)
+        return NextResponse.json({ error: 'Failed to create new jargon term' }, { status: 500 })
+      }
+      
+      // Use the newly created jargon term ID
+      jargonTermId = newJargonTerm.id
+      console.log(`Created new jargon term with ID: ${jargonTermId}`)
+    }
 
-    // --- 4. Fetch Jargon Term Default Cost (if no custom amount) ---
+    // --- 5. Determine Charge Amount ---
     let chargeAmount = customAmount
-    if (chargeAmount === null || Number.isNaN(chargeAmount)) { // Use Number.isNaN
+    if (!isNewJargonTerm && (chargeAmount === null || Number.isNaN(chargeAmount))) {
+        // Fetch default cost for existing term
         const { data: jargonTerm, error: termError } = await supabaseServiceRole
             .from('jargon_terms')
-            .select('default_cost')
-            .eq('id', selectedJargonTermId) // Assuming value is the UUID
+            .select('default_cost, term')
+            .eq('id', jargonTermId)
             .single()
 
         if (termError || !jargonTerm) {
-            console.error(`Error fetching jargon term ${selectedJargonTermId}:`, termError)
+            console.error(`Error fetching jargon term ${jargonTermId}:`, termError)
             return NextResponse.json({ error: 'Could not fetch jargon term details' }, { status: 500 })
         }
+        
         // Ensure default_cost is treated as a number
         const defaultCost = typeof jargonTerm.default_cost === 'string'
                            ? Number.parseFloat(jargonTerm.default_cost)
                            : jargonTerm.default_cost;
 
         chargeAmount = defaultCost;
+        console.log(`Using default cost ${chargeAmount} for term "${jargonTerm.term}"`)
     }
 
-    if (chargeAmount === null || Number.isNaN(chargeAmount) || chargeAmount < 0) { // Use Number.isNaN
+    if (chargeAmount === null || Number.isNaN(chargeAmount) || chargeAmount < 0) {
         console.error('Invalid charge amount determined:', chargeAmount)
         const errors = { [amountBlockId]: 'Invalid charge amount.' }
         return NextResponse.json({ response_action: 'errors', errors })
     }
 
-    // --- 5. Fetch User DB IDs ---
+    // --- 6. Fetch User DB IDs ---
     // Fetch the internal DB UUIDs for the users based on their Slack IDs
     const fetchUserDbId = async (slackId: string): Promise<string | null> => {
         const { data: userData, error: userError } = await supabaseServiceRole
@@ -277,12 +408,10 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
 
     if (!chargedDbUserId || !chargingDbUserId) {
         console.error('Could not find database entries for one or both users:', { selectedUserSlackId, chargingUserSlackId, chargedDbUserId, chargingDbUserId });
-        // Consider sending an ephemeral message back to the user who submitted
         return NextResponse.json({ error: 'Could not identify users involved in the charge.' }, { status: 400 });
     }
 
-
-    // --- 6. Create Charge Record in Supabase ---
+    // --- 7. Create Charge Record in Supabase ---
     // For manual charges, use the current timestamp as message_ts
     const currentTimestamp = Math.floor(Date.now() / 1000).toString();
     
@@ -291,7 +420,7 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
       .insert({
         charged_user_id: chargedDbUserId, // Use DB UUID
         charging_user_id: chargingDbUserId, // Use DB UUID
-        jargon_term_id: selectedJargonTermId, // DB UUID from modal value
+        jargon_term_id: jargonTermId, // DB UUID from modal value or newly created term
         amount: chargeAmount,
         channel_id: channelId, // Slack Channel ID
         workspace_id: workspaceId, // DB UUID
@@ -309,23 +438,28 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
 
     console.log('Charge successfully recorded with ID:', chargeData?.id);
 
-    // --- 7. Post Confirmation Message to Slack ---
+    // --- 8. Post Confirmation Message to Slack ---
     try {
-      // Fetch Jargon term text again (could be optimized by fetching earlier)
+      // Fetch Jargon term text
       const { data: termData, error: termFetchError } = await supabaseServiceRole
         .from('jargon_terms')
         .select('term')
-        .eq('id', selectedJargonTermId)
+        .eq('id', jargonTermId)
         .single()
 
       if (termFetchError || !termData) {
-          console.error(`Error fetching jargon term text for ${selectedJargonTermId}:`, termFetchError);
+          console.error(`Error fetching jargon term text for ${jargonTermId}:`, termFetchError);
           // Proceed without term text if fetch fails
       }
-      const jargonText = termData?.term ?? 'an unspecified term'
+      const jargonText = termData?.term ?? (isNewJargonTerm ? customJargonTerm : 'an unspecified term')
 
       // Create a message with the description if provided
       let confirmationText = `:dollar: <@${chargingUserSlackId}> just charged <@${selectedUserSlackId}> $${chargeAmount.toFixed(2)} for using "${jargonText}"!`;
+      
+      // Add special notice if this was a new term
+      if (isNewJargonTerm) {
+        confirmationText += '\n:new: _New jargon term added to the dictionary!_';
+      }
       
       // Add the description if provided
       if (descriptionText?.trim()) {
@@ -345,12 +479,161 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
       // Log error but don't fail the interaction if DB insert succeeded
     }
 
-    // --- 8. Acknowledge the interaction ---
+    // --- 9. Acknowledge the interaction ---
     // Return empty 200 OK to close the modal and confirm receipt
     return NextResponse.json({})
 
   } catch (error) {
     console.error('Unhandled error in handleModalSubmission:', error)
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 })
+  }
+}
+
+async function handleBlockActions(payload: BlockActionsPayload) {
+  // Extract the action that was performed
+  const actions = payload.actions || []
+  if (actions.length === 0) {
+    return NextResponse.json({})
+  }
+
+  // Only focus on jargon select actions
+  const action = actions[0]
+  const actionId = action.action_id
+  
+  // We're only interested in jargon selection to update other fields
+  if (actionId !== 'jargon_select') {
+    // For any other actions, just acknowledge without doing anything
+    return NextResponse.json({})
+  }
+  
+  try {
+    // Extract necessary data
+    const teamId = payload.team.id
+    const viewId = payload.view.id
+    const selectedJargonId = action.selected_option?.value
+    
+    if (!selectedJargonId) {
+      console.log('No jargon selected, not updating other fields')
+      return NextResponse.json({})
+    }
+    
+    // Ensure required env vars are present
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      console.error('Missing Supabase URL or Service Role Key')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+    
+    // Create service role client and get workspace info
+    const supabaseServiceRole = createClient(supabaseUrl, supabaseServiceRoleKey)
+    
+    const { data: workspace, error: workspaceError } = await supabaseServiceRole
+      .from('workspaces')
+      .select('bot_token')
+      .eq('slack_id', teamId)
+      .single()
+      
+    if (workspaceError || !workspace || !workspace.bot_token) {
+      console.error(`Error fetching workspace or bot token for team ${teamId}:`, workspaceError)
+      return NextResponse.json({ error: 'Could not retrieve workspace info' }, { status: 500 })
+    }
+    
+    // Get jargon term details
+    const { data: jargonTerm, error: jargonError } = await supabaseServiceRole
+      .from('jargon_terms')
+      .select('term, description, default_cost')
+      .eq('id', selectedJargonId)
+      .single()
+      
+    if (jargonError || !jargonTerm) {
+      console.error(`Error fetching jargon term ${selectedJargonId}:`, jargonError)
+      return NextResponse.json({ error: 'Could not fetch jargon details' }, { status: 500 })
+    }
+    
+    console.log(`Fetched jargon term: ${jargonTerm.term}, cost: ${jargonTerm.default_cost}`)
+    
+    // Create Slack web client
+    const botToken = workspace.bot_token
+    const slackWebClient = new WebClient(botToken)
+    
+    // Create blocks for updating
+    const updatedBlocks = [
+      // Amount block - updated with the default cost
+      {
+        type: 'input',
+        block_id: 'amount_block',
+        element: {
+          type: 'plain_text_input',
+          action_id: 'amount_input',
+          initial_value: jargonTerm.default_cost.toString(),
+          placeholder: {
+            type: 'plain_text',
+            text: 'Enter amount (e.g., 1.00)',
+            emoji: true
+          }
+        },
+        label: {
+          type: 'plain_text',
+          text: 'Amount',
+          emoji: true
+        },
+        hint: {
+          type: 'plain_text',
+          text: 'Pre-filled with the default cost for this term',
+          emoji: true
+        }
+      },
+      // Description block - updated with the term description
+      {
+        type: 'input',
+        block_id: 'description_block',
+        element: {
+          type: 'plain_text_input',
+          action_id: 'description_input',
+          initial_value: jargonTerm.description || '',
+          placeholder: {
+            type: 'plain_text',
+            text: 'Enter description',
+            emoji: true
+          },
+          multiline: true
+        },
+        label: {
+          type: 'plain_text',
+          text: 'Description',
+          emoji: true
+        },
+        hint: {
+          type: 'plain_text',
+          text: 'Pre-filled with the term definition',
+          emoji: true
+        }
+      }
+    ]
+    
+    // Update the view
+    await slackWebClient.views.update({
+      view_id: viewId,
+      hash: payload.view.hash, // Important for view updates
+      view: {
+        type: 'modal',
+        callback_id: payload.view.callback_id,
+        title: payload.view.title,
+        submit: payload.view.submit,
+        close: payload.view.close,
+        private_metadata: payload.view.private_metadata,
+        blocks: [
+          ...payload.view.blocks.slice(0, 3), // Keep the first 3 blocks (user, jargon select, custom jargon)
+          ...updatedBlocks,  // Replace amount and description blocks
+        ]
+      }
+    })
+    
+    return NextResponse.json({})
+  } catch (error) {
+    console.error('Error handling block actions:', error)
+    // Even if there's an error, return 200 to prevent Slack from showing an error to the user
+    return NextResponse.json({})
   }
 } 
