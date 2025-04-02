@@ -129,11 +129,11 @@ export async function POST(req: Request) {
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: 'Add New Jargon',
+                text: '➕ Add New Jargon',
                 emoji: true
               },
               action_id: 'add_new_jargon',
-              style: 'primary'
+              style: 'plain_text'
             }
           ]
         }
