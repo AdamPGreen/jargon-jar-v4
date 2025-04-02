@@ -283,6 +283,9 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
 
 
     // --- 6. Create Charge Record in Supabase ---
+    // For manual charges, use the current timestamp as message_ts
+    const currentTimestamp = Math.floor(Date.now() / 1000).toString();
+    
     const { data: chargeData, error: insertError } = await supabaseServiceRole
       .from('charges')
       .insert({
@@ -294,6 +297,7 @@ async function handleModalSubmission(payload: SlackInteractionPayload) { // Use 
         workspace_id: workspaceId, // DB UUID
         is_automatic: false,
         message_text: descriptionText || 'No description provided', // Add the description text
+        message_ts: currentTimestamp, // Add a timestamp for manual charges
       })
       .select('id') // Optionally select the new charge ID
       .single()
