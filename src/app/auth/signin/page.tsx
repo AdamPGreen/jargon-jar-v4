@@ -1,27 +1,25 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 
 export default function SignIn() {
-  // Log environment variables on the client-side
-  console.log('Client-side NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-  console.log('Client-side NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const handleSlackSignIn = () => {
+    const clientId = process.env.NEXT_PUBLIC_SLACK_CLIENT_ID
+    const redirectUri = `${window.location.origin}/api/auth/slack/callback`
+    const scopes = [
+      'identity.basic',
+      'identity.email',
+      'identity.avatar',
+      'identity.team',
+      'chat:write',
+      'commands',
+      'users:read',
+      'users:read.email',
+      'team:read'
+    ].join(',')
 
-  const supabase = createClient();
-
-  const handleSlackSignIn = async () => {
-    console.log('Attempting sign in with: slack_oidc'); // Update log
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'slack_oidc', // *** TRY THIS KEY INSTEAD ***
-      options: {
-        redirectTo: `${location.origin}/auth/callback`,
-      },
-    })
-
-    if (error) {
-      console.error('Error signing in with Slack:', error)
-    }
+    const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`
+    window.location.href = slackAuthUrl
   }
 
   return (
