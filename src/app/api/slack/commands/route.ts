@@ -19,8 +19,7 @@ function parseSlackPayload(formData: FormData) {
     user_id: payload.user_id,
     trigger_id: payload.trigger_id,
     channel_id: payload.channel_id,
-    team_id: payload.team_id,
-    token: payload.token
+    team_id: payload.team_id
   }
 }
 
@@ -45,6 +44,18 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
       process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
     )
+
+    // First, get the workspace's bot token
+    const { data: workspace, error: workspaceError } = await supabase
+      .from('workspaces')
+      .select('bot_token')
+      .eq('slack_id', slackPayload.team_id)
+      .single()
+
+    if (workspaceError || !workspace?.bot_token) {
+      console.error('Error fetching workspace bot token:', workspaceError)
+      throw new Error('Could not fetch workspace bot token')
+    }
 
     // Fetch jargon terms
     const { data: jargonTerms } = await supabase
@@ -144,16 +155,17 @@ export async function POST(req: Request) {
         }
       ],
       private_metadata: JSON.stringify({
-        jargon_terms: jargonTerms
+        jargon_terms: jargonTerms,
+        channel_id: slackPayload.channel_id
       })
     }
 
-    // Open the modal
+    // Open the modal using the workspace's bot token
     const response = await fetch('https://slack.com/api/views.open', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        Authorization: `Bearer ${slackPayload.token}`
+        Authorization: `Bearer ${workspace.bot_token}`
       },
       body: JSON.stringify({
         trigger_id: slackPayload.trigger_id,
