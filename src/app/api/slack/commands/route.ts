@@ -225,6 +225,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Workspace not found for bot token' }, { status: 404 })
       }
       
+      console.log('DIAGNOSTIC: Workspace data fetched:', JSON.stringify(workspace, null, 2))
+      console.log('DIAGNOSTIC: Extracted bot_token:', workspace.bot_token)
+      
       console.log('DIAGNOSTIC: Found workspace bot token')
       
       // Call Slack API to open the modal
