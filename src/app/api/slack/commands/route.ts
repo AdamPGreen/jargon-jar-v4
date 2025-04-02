@@ -21,38 +21,54 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
     )
 
-    // Get the workspace's bot token
+    // Fetch workspace info
     const { data: workspace, error: workspaceError } = await supabase
       .from('workspaces')
-      .select('bot_token')
+      .select('id, bot_token')
       .eq('slack_id', teamId)
       .single()
 
-    if (workspaceError || !workspace?.bot_token) {
+    if (workspaceError || !workspace || !workspace.bot_token) {
       console.error('Error fetching workspace:', workspaceError)
-      return new Response('Could not fetch workspace info', { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch workspace info' }, { status: 500 })
     }
 
-    // Fetch jargon terms
+    // Fetch jargon terms for this workspace
     const { data: jargonTerms, error: jargonError } = await supabase
       .from('jargon_terms')
-      .select('id, term, default_cost')
+      .select('id, term, default_cost, description')
+      .or(`workspace_id.eq.${workspace.id},workspace_id.is.null`)
       .order('term')
 
-    if (jargonError || !jargonTerms) {
+    if (jargonError) {
       console.error('Error fetching jargon terms:', jargonError)
-      return new Response('Could not fetch jargon terms', { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch jargon terms' }, { status: 500 })
     }
 
-    // Create options without descriptions (they'll be shown after selection)
+    // Create options for the jargon select
     const jargonOptions = jargonTerms.map(term => ({
       text: {
-        type: 'plain_text',
+        type: 'plain_text' as const,
         text: `${term.term} ($${term.default_cost})`,
         emoji: true
       },
       value: term.id
     }))
+
+    // Add "Add new term" option
+    jargonOptions.push({
+      text: {
+        type: 'plain_text' as const,
+        text: '➕ Add new term',
+        emoji: true
+      },
+      value: 'new_term'
+    })
+
+    // Store a map of id -> description for use in the interaction handler
+    const descriptions = Object.fromEntries(
+      jargonTerms.map(term => [term.id, term.description || ''])
+    )
 
     const modalView = {
       type: 'modal',
@@ -129,10 +145,7 @@ export async function POST(req: Request) {
       ],
       private_metadata: JSON.stringify({
         channel_id: channelId,
-        // Store a map of id -> description for use in the interaction handler
-        descriptions: Object.fromEntries(
-          jargonTerms.map(term => [term.id, term.description || ''])
-        )
+        descriptions: descriptions
       })
     }
 
