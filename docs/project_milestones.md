@@ -274,3 +274,22 @@
 4. Add confirmation messages back to the Slack channel
 
 Can you help me with that?"
+
+## Debugging OAuth & Commands (Week 5 Cont.)
+
+### Completed
+- **Resolved Slack Installation Failures:**
+  - Corrected OAuth flow to use direct Slack URL (`oauth/v2/authorize`) with separate `scope` (bot) and `user_scope` parameters.
+  - Fixed callback handler (`/api/auth/slack/callback`) logic:
+    - Implemented `oauth.v2.access` code exchange.
+    - Added `team.info` fetch to get workspace domain.
+    - Ensured `domain` and user `token` were included in `workspaces` upsert to satisfy `NOT NULL` constraints.
+    - Used Supabase `service_role` key to bypass RLS policies during initial `workspaces` and `users` record creation.
+- **Resolved `/charge` Command Failures (`dispatch_failed`, `PGRST116`):
+  - Corrected command handler (`/api/slack/commands`) to use the workspace-specific `bot_token` fetched from the database for `views.open` calls.
+  - Updated command handler to use Supabase `service_role` key for database reads (user, workspace, jargon terms), bypassing RLS read restrictions encountered by the backend function.
+  - Confirmed `/charge` command successfully fetches data and opens the modal with user and jargon selection.
+
+### Next Steps
+- Implement charge creation logic in the interactions handler (`/api/slack/interactions`).
+- Add confirmation message posting to Slack channel after charge creation.

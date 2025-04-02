@@ -106,14 +106,25 @@ export async function POST(request: Request) {
         return NextResponse.json({ text: 'Error: Could not fetch jargon terms.' }, { status: 500 })
       }
 
-      const jargonOptions = jargonTerms.map(term => ({
-        text: {
-          type: 'plain_text',
-          text: `${term.term} ($${term.default_cost})`,
-          emoji: true
-        },
-        value: term.id
-      }))
+      const jargonOptions = [
+        ...jargonTerms.map(term => ({
+          text: {
+            type: 'plain_text',
+            text: `${term.term} ($${term.default_cost})`,
+            emoji: true
+          },
+          value: term.id
+        })),
+        // Add "Add new term" option at the end
+        {
+          text: {
+            type: 'plain_text',
+            text: '➕ Add new term',
+            emoji: true
+          },
+          value: 'new_term'
+        }
+      ]
       
       // Open a modal for charge creation
       const modalView = {

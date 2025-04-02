@@ -510,12 +510,15 @@ async function handleBlockActions(payload: BlockActionsPayload) {
     // Extract necessary data
     const teamId = payload.team.id
     const viewId = payload.view.id
-    const selectedJargonId = action.selected_option?.value
+    const selectedValue = action.selected_option?.value
     
-    if (!selectedJargonId) {
+    if (!selectedValue) {
       console.log('No jargon selected, not updating other fields')
       return NextResponse.json({})
     }
+
+    // Check if this is a new term selection
+    const isNewTerm = selectedValue === 'new_term'
     
     // Ensure required env vars are present
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -538,84 +541,128 @@ async function handleBlockActions(payload: BlockActionsPayload) {
       console.error(`Error fetching workspace or bot token for team ${teamId}:`, workspaceError)
       return NextResponse.json({ error: 'Could not retrieve workspace info' }, { status: 500 })
     }
-    
-    // Get jargon term details
-    const { data: jargonTerm, error: jargonError } = await supabaseServiceRole
-      .from('jargon_terms')
-      .select('term, description, default_cost')
-      .eq('id', selectedJargonId)
-      .single()
-      
-    if (jargonError || !jargonTerm) {
-      console.error(`Error fetching jargon term ${selectedJargonId}:`, jargonError)
-      return NextResponse.json({ error: 'Could not fetch jargon details' }, { status: 500 })
-    }
-    
-    console.log(`Fetched jargon term: ${jargonTerm.term}, cost: ${jargonTerm.default_cost}`)
-    
-    // Create Slack web client
+
     const botToken = workspace.bot_token
     const slackWebClient = new WebClient(botToken)
     
-    // Create blocks for updating
-    const updatedBlocks = [
-      // Amount block - updated with the default cost
-      {
-        type: 'input',
-        block_id: 'amount_block',
-        element: {
-          type: 'plain_text_input',
-          action_id: 'amount_input',
-          initial_value: jargonTerm.default_cost.toString(),
-          placeholder: {
-            type: 'plain_text',
-            text: 'Enter amount (e.g., 1.00)',
-            emoji: true
-          }
-        },
-        label: {
-          type: 'plain_text',
-          text: 'Amount',
-          emoji: true
-        },
-        hint: {
-          type: 'plain_text',
-          text: 'Pre-filled with the default cost for this term',
-          emoji: true
-        }
-      },
-      // Description block - updated with the term description
-      {
-        type: 'input',
-        block_id: 'description_block',
-        element: {
-          type: 'plain_text_input',
-          action_id: 'description_input',
-          initial_value: jargonTerm.description || '',
-          placeholder: {
-            type: 'plain_text',
-            text: 'Enter description',
-            emoji: true
+    // Keep user and jargon select blocks
+    const initialBlocks = payload.view.blocks.slice(0, 2) as SlackBlock[]
+    
+    // Create blocks for updating based on selection
+    const updatedBlocks = isNewTerm
+      ? [
+          ...initialBlocks,
+          // Show fields for new term creation
+          {
+            type: 'input',
+            block_id: 'custom_jargon_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'custom_jargon_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter the new jargon term',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'New Jargon Term',
+              emoji: true
+            }
           },
-          multiline: true
-        },
-        label: {
-          type: 'plain_text',
-          text: 'Description',
-          emoji: true
-        },
-        hint: {
-          type: 'plain_text',
-          text: 'Pre-filled with the term definition',
-          emoji: true
-        }
-      }
-    ]
+          {
+            type: 'input',
+            block_id: 'amount_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'amount_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter amount (e.g., 1.00)',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Amount',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
+            block_id: 'description_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'description_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter a description for this term',
+                emoji: true
+              },
+              multiline: true
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Description',
+              emoji: true
+            }
+          }
+        ] as SlackBlock[]
+      : await (async () => {
+          // Get jargon term details for existing term
+          const { data: jargonTerm, error: jargonError } = await supabaseServiceRole
+            .from('jargon_terms')
+            .select('term, description, default_cost')
+            .eq('id', selectedValue)
+            .single()
+            
+          if (jargonError || !jargonTerm) {
+            console.error(`Error fetching jargon term ${selectedValue}:`, jargonError)
+            throw new Error('Could not fetch jargon details')
+          }
+
+          return [
+            ...initialBlocks,
+            // Show read-only fields for existing term
+            {
+              type: 'section',
+              block_id: 'amount_block',
+              text: {
+                type: 'mrkdwn',
+                text: `*Amount:* $${jargonTerm.default_cost.toFixed(2)}`
+              }
+            },
+            {
+              type: 'section',
+              block_id: 'description_block',
+              text: {
+                type: 'mrkdwn',
+                text: `*Description:*\n${jargonTerm.description || '_No description available_'}`
+              }
+            },
+            // Add hidden input for amount to ensure it's included in submission
+            {
+              type: 'input',
+              block_id: 'hidden_amount_block',
+              element: {
+                type: 'plain_text_input',
+                action_id: 'amount_input',
+                initial_value: jargonTerm.default_cost.toString()
+              },
+              label: {
+                type: 'plain_text',
+                text: 'Amount',
+                emoji: true
+              }
+            }
+          ] as SlackBlock[]
+        })()
     
     // Update the view
     await slackWebClient.views.update({
       view_id: viewId,
-      hash: payload.view.hash, // Important for view updates
+      hash: payload.view.hash,
       view: {
         type: 'modal',
         callback_id: payload.view.callback_id,
@@ -623,17 +670,13 @@ async function handleBlockActions(payload: BlockActionsPayload) {
         submit: payload.view.submit,
         close: payload.view.close,
         private_metadata: payload.view.private_metadata,
-        blocks: [
-          ...payload.view.blocks.slice(0, 3), // Keep the first 3 blocks (user, jargon select, custom jargon)
-          ...updatedBlocks,  // Replace amount and description blocks
-        ]
+        blocks: updatedBlocks
       }
     })
     
     return NextResponse.json({})
   } catch (error) {
     console.error('Error handling block actions:', error)
-    // Even if there's an error, return 200 to prevent Slack from showing an error to the user
     return NextResponse.json({})
   }
 } 
