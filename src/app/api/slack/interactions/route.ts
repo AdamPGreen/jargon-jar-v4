@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import crypto from 'node:crypto'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@supabase/supabase-js'
+import querystring from 'node:querystring'
 
 // Verify that the request is coming from Slack
 function verifySlackRequest(request: Request, body: string): boolean {
@@ -91,13 +92,33 @@ interface PrivateMetadata {
 
 export async function POST(request: Request) {
   try {
+    // Get the raw body for signature verification
     const body = await request.text()
+    console.log(`Received raw body: ${body.substring(0, 100)}...`)
+    
+    // Verify the request is from Slack
     if (!verifySlackRequest(request, body)) {
       return NextResponse.json({ error: 'Invalid request signature' }, { status: 401 })
     }
-
-    const payload: SlackInteractionPayload = JSON.parse(body) // Use interface
-
+    
+    // Slack sends form-encoded data with a 'payload' parameter
+    // Parse the form-encoded body
+    const formData = querystring.parse(body)
+    
+    // Extract and parse the payload JSON string
+    const payloadStr = formData.payload as string
+    if (!payloadStr) {
+      console.error('No payload parameter found in request body')
+      return NextResponse.json({ error: 'Missing payload' }, { status: 400 })
+    }
+    
+    console.log(`Extracted payload string: ${payloadStr.substring(0, 100)}...`)
+    
+    // Parse the payload as JSON
+    const payload: SlackInteractionPayload = JSON.parse(payloadStr)
+    console.log(`Parsed payload type: ${payload.type}`)
+    
+    // Handle different types of interactions
     switch (payload.type) {
       case 'view_submission':
         return handleModalSubmission(payload)
