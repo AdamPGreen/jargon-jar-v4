@@ -814,3 +814,17 @@ async function handleViewSubmission(payload: ViewSubmissionPayload) {
           response_action: 'errors',
           errors: {
             term_block: `Failed to create charge: ${chargeError.message}`
+          }
+        }))
+      }
+
+      // Return success
+      return new Response(JSON.stringify({}))
+    }
+
+    return new Response(JSON.stringify({}))
+  } catch (error) {
+    console.error('Error handling view submission:', error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
+  }
+}
