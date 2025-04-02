@@ -529,11 +529,11 @@ async function handleBlockActions(payload: BlockActionsPayload) {
 
     if (action.action_id === 'jargon_select' && action.selected_option) {
       const selectedJargonId = action.selected_option.value
-      const metadata = JSON.parse(payload.view.private_metadata) as ModalMetadata
-      const selectedTerm = metadata.jargon_terms.find((term) => term.id === selectedJargonId)
+      const metadata = JSON.parse(payload.view.private_metadata)
+      const description = metadata.descriptions[selectedJargonId]
 
-      if (!selectedTerm) {
-        return new Response(JSON.stringify({ error: 'Term not found' }))
+      if (!description) {
+        return new Response(JSON.stringify({ error: 'Description not found' }))
       }
 
       // Update the blocks to include description and pre-populate amount
@@ -544,7 +544,7 @@ async function handleBlockActions(payload: BlockActionsPayload) {
           block_id: 'description_block',
           text: {
             type: 'mrkdwn',
-            text: `*Description:* ${selectedTerm.description}`
+            text: `*Description:* ${description}`
           }
         },
         {
@@ -553,7 +553,7 @@ async function handleBlockActions(payload: BlockActionsPayload) {
           element: {
             type: 'plain_text_input',
             action_id: 'amount_input',
-            initial_value: selectedTerm.default_cost.toString(),
+            initial_value: action.selected_option.text.text.match(/\$(\d+(\.\d{2})?)/)?.[1] || '1.00',
             placeholder: {
               type: 'plain_text',
               text: 'Enter charge amount',
@@ -814,23 +814,3 @@ async function handleViewSubmission(payload: ViewSubmissionPayload) {
           response_action: 'errors',
           errors: {
             term_block: `Failed to create charge: ${chargeError.message}`
-          }
-        }))
-      }
-
-      return new Response(JSON.stringify({
-        response_action: 'clear'
-      }))
-    }
-
-    return new Response(JSON.stringify({}))
-  } catch (error) {
-    console.error('Error handling view submission:', error)
-    return new Response(JSON.stringify({
-      response_action: 'errors',
-      errors: {
-        term_block: 'Failed to create jargon term. Please try again.'
-      }
-    }))
-  }
-} 

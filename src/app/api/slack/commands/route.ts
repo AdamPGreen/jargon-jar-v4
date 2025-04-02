@@ -1,43 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import querystring from 'node:querystring'
-
-// Helper function to parse Slack's form data
-function parseSlackPayload(formData: FormData) {
-  const entries = Array.from(formData.entries())
-  const payload: Record<string, string> = {}
-  
-  for (const [key, value] of entries) {
-    if (typeof value === 'string') {
-      payload[key] = value
-    }
-  }
-  
-  return {
-    command: payload.command,
-    text: payload.text,
-    user_id: payload.user_id,
-    trigger_id: payload.trigger_id,
-    channel_id: payload.channel_id,
-    team_id: payload.team_id
-  }
-}
-
-// Verify that the request is coming from Slack
-function verifySlackRequest(request: Request, body: FormData): boolean {
-  // For now, we'll trust the request since we're behind Vercel's proxy
-  // TODO: Implement proper request verification
-  return true
-}
 
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData()
-    const slackPayload = parseSlackPayload(formData)
+    // Get the raw body for signature verification
+    const body = await req.text()
+    const formData = new URLSearchParams(body)
     
-    // Verify Slack request
-    if (!verifySlackRequest(req, formData)) {
-      return new Response('Invalid request signature', { status: 401 })
+    const command = formData.get('command')
+    const triggerId = formData.get('trigger_id')
+    const channelId = formData.get('channel_id')
+    const teamId = formData.get('team_id')
+    
+    if (!command || !triggerId || !channelId || !teamId) {
+      return new Response('Missing required fields', { status: 400 })
     }
 
     const supabase = createClient(
@@ -45,40 +21,37 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
     )
 
-    // First, get the workspace's bot token
+    // Get the workspace's bot token
     const { data: workspace, error: workspaceError } = await supabase
       .from('workspaces')
       .select('bot_token')
-      .eq('slack_id', slackPayload.team_id)
+      .eq('slack_id', teamId)
       .single()
 
     if (workspaceError || !workspace?.bot_token) {
-      console.error('Error fetching workspace bot token:', workspaceError)
-      throw new Error('Could not fetch workspace bot token')
+      console.error('Error fetching workspace:', workspaceError)
+      return new Response('Could not fetch workspace info', { status: 500 })
     }
 
     // Fetch jargon terms
-    const { data: jargonTerms } = await supabase
+    const { data: jargonTerms, error: jargonError } = await supabase
       .from('jargon_terms')
-      .select('id, term, description, default_cost')
+      .select('id, term, default_cost')
       .order('term')
 
-    if (!jargonTerms) {
-      throw new Error('Failed to fetch jargon terms')
+    if (jargonError || !jargonTerms) {
+      console.error('Error fetching jargon terms:', jargonError)
+      return new Response('Could not fetch jargon terms', { status: 500 })
     }
 
+    // Create options without descriptions (they'll be shown after selection)
     const jargonOptions = jargonTerms.map(term => ({
       text: {
         type: 'plain_text',
         text: `${term.term} ($${term.default_cost})`,
         emoji: true
       },
-      value: term.id,
-      description: {
-        type: 'plain_text',
-        text: term.description,
-        emoji: true
-      }
+      value: term.id
     }))
 
     const modalView = {
@@ -155,12 +128,15 @@ export async function POST(req: Request) {
         }
       ],
       private_metadata: JSON.stringify({
-        jargon_terms: jargonTerms,
-        channel_id: slackPayload.channel_id
+        channel_id: channelId,
+        // Store a map of id -> description for use in the interaction handler
+        descriptions: Object.fromEntries(
+          jargonTerms.map(term => [term.id, term.description || ''])
+        )
       })
     }
 
-    // Open the modal using the workspace's bot token
+    // Open the modal
     const response = await fetch('https://slack.com/api/views.open', {
       method: 'POST',
       headers: {
@@ -168,7 +144,7 @@ export async function POST(req: Request) {
         Authorization: `Bearer ${workspace.bot_token}`
       },
       body: JSON.stringify({
-        trigger_id: slackPayload.trigger_id,
+        trigger_id: triggerId,
         view: modalView
       })
     })
