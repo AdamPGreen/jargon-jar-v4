@@ -65,11 +65,6 @@ export async function POST(req: Request) {
       value: 'new_term'
     })
 
-    // Store a map of id -> description for use in the interaction handler
-    const descriptions = Object.fromEntries(
-      jargonTerms.map(term => [term.id, term.description || ''])
-    )
-
     const modalView = {
       type: 'modal',
       callback_id: 'charge_modal',
@@ -145,7 +140,7 @@ export async function POST(req: Request) {
       ],
       private_metadata: JSON.stringify({
         channel_id: channelId,
-        descriptions: descriptions
+        workspace_id: workspace.id
       })
     }
 

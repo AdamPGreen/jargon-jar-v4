@@ -527,52 +527,155 @@ async function handleBlockActions(payload: BlockActionsPayload) {
       return new Response(JSON.stringify({ error: 'No action provided' }))
     }
 
-    if (action.action_id === 'jargon_select' && action.selected_option) {
-      const selectedJargonId = action.selected_option.value
-      const metadata = JSON.parse(payload.view.private_metadata)
-      const description = metadata.descriptions[selectedJargonId]
+    // Handle jargon selection
+    if (action.action_id === 'jargon_select') {
+      const selectedValue = action.selected_option?.value
+      if (!selectedValue) return new Response(JSON.stringify({}))
 
-      if (!description) {
-        return new Response(JSON.stringify({ error: 'Description not found' }))
+      // If "Add new term" was selected, show the new term form
+      if (selectedValue === 'new_term') {
+        const updatedBlocks = [
+          ...payload.view.blocks.slice(0, 2), // Keep user and jargon blocks
+          {
+            type: 'input',
+            block_id: 'new_term_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'new_term_input',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter new jargon term',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'New Jargon Term',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
+            block_id: 'new_cost_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'new_cost_input',
+              input_type: 'number',
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter cost amount',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Cost Amount',
+              emoji: true
+            }
+          },
+          {
+            type: 'input',
+            block_id: 'new_description_block',
+            element: {
+              type: 'plain_text_input',
+              action_id: 'new_description_input',
+              multiline: true,
+              placeholder: {
+                type: 'plain_text',
+                text: 'Enter description',
+                emoji: true
+              }
+            },
+            label: {
+              type: 'plain_text',
+              text: 'Description',
+              emoji: true
+            }
+          }
+        ]
+
+        return new Response(JSON.stringify({
+          response_action: 'update',
+          view: {
+            type: 'modal',
+            callback_id: 'charge_modal',
+            title: payload.view.title,
+            submit: payload.view.submit,
+            close: payload.view.close,
+            blocks: updatedBlocks,
+            private_metadata: payload.view.private_metadata
+          }
+        }))
       }
 
-      // Update the blocks to include description and pre-populate amount
-      const updatedBlocks = [
-        ...payload.view.blocks.slice(0, 2), // Keep user and jargon select blocks
-        {
-          type: 'section',
-          block_id: 'description_block',
-          text: {
-            type: 'mrkdwn',
-            text: `*Description:* ${description}`
+      // For existing terms, fetch the description and show it
+      const supabaseServiceRole = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+      )
+
+      const { data: term, error: termError } = await supabaseServiceRole
+        .from('jargon_terms')
+        .select('description, default_cost')
+        .eq('id', selectedValue)
+        .single()
+
+      if (termError) {
+        console.error('Error fetching term details:', termError)
+        return new Response(JSON.stringify({
+          response_action: 'errors',
+          errors: {
+            jargon_block: 'Failed to fetch term details'
           }
-        },
+        }))
+      }
+
+      const updatedBlocks = [
+        ...payload.view.blocks.slice(0, 2), // Keep user and jargon blocks
         {
           type: 'input',
-          block_id: 'amount_block',
+          block_id: 'cost_block',
           element: {
             type: 'plain_text_input',
-            action_id: 'amount_input',
-            initial_value: action.selected_option.text.text.match(/\$(\d+(\.\d{2})?)/)?.[1] || '1.00',
+            action_id: 'cost_input',
+            input_type: 'number',
+            initial_value: term.default_cost.toString(),
             placeholder: {
               type: 'plain_text',
-              text: 'Enter charge amount',
+              text: 'Enter cost amount',
               emoji: true
             }
           },
           label: {
             type: 'plain_text',
-            text: 'Charge amount ($)',
+            text: 'Cost Amount',
             emoji: true
           }
         }
       ]
 
+      // Only add description block if there is one
+      if (term.description) {
+        updatedBlocks.push({
+          type: 'section',
+          block_id: 'description_block',
+          text: {
+            type: 'mrkdwn',
+            text: `*Description:*\n${term.description}`
+          }
+        })
+      }
+
       return new Response(JSON.stringify({
         response_action: 'update',
         view: {
-          ...payload.view,
-          blocks: updatedBlocks
+          type: 'modal',
+          callback_id: 'charge_modal',
+          title: payload.view.title,
+          submit: payload.view.submit,
+          close: payload.view.close,
+          blocks: updatedBlocks,
+          private_metadata: payload.view.private_metadata
         }
       }))
     }
@@ -732,99 +835,18 @@ async function handleOptionsLoad(payload: OptionsLoadPayload) {
       return NextResponse.json({ options: [] })
     }
 
-    // Format options
-    const options = [
-      ...jargonTerms.map(term => ({
-        text: {
-          type: 'plain_text' as const,
-          text: `${term.term} ($${term.default_cost})`,
-          emoji: true
-        },
-        value: term.id
-      }))
-    ]
-
-    // Always add the "Add new term" option
-    options.push({
+    const options = jargonTerms.map(term => ({
       text: {
-        type: 'plain_text' as const,
-        text: '➕ Add new term',
+        type: 'plain_text',
+        text: term.term,
         emoji: true
       },
-      value: 'new_term'
-    })
+      value: term.id
+    }))
 
     return NextResponse.json({ options })
   } catch (error) {
     console.error('Error handling options load:', error)
-    return NextResponse.json({ options: [] })
-  }
-}
-
-async function handleViewSubmission(payload: ViewSubmissionPayload) {
-  try {
-    if (payload.view.callback_id === 'new_jargon_modal') {
-      // Handle new jargon creation
-      const values = payload.view.state.values
-      const term = values.term_block.term_input.value
-      const description = values.description_block.description_input.value
-      const amount = values.amount_block.amount_input.value
-      const userId = values.user_block.user_select.selected_user
-
-      // Create new jargon term
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
-      )
-
-      const { data: newTerm, error: termError } = await supabase
-        .from('jargon_terms')
-        .insert({
-          term,
-          description,
-          default_cost: amount,
-          created_by: payload.user.id,
-          workspace_id: payload.team.id
-        })
-        .select()
-        .single()
-
-      if (termError) {
-        return new Response(JSON.stringify({
-          response_action: 'errors',
-          errors: {
-            term_block: `Failed to create jargon term: ${termError.message}`
-          }
-        }))
-      }
-
-      // Create charge
-      const { error: chargeError } = await supabase
-        .from('charges')
-        .insert({
-          charged_user_id: userId,
-          charging_user_id: payload.user.id,
-          jargon_term_id: newTerm.id,
-          amount,
-          workspace_id: payload.team.id
-        })
-
-      if (chargeError) {
-        return new Response(JSON.stringify({
-          response_action: 'errors',
-          errors: {
-            term_block: `Failed to create charge: ${chargeError.message}`
-          }
-        }))
-      }
-
-      // Return success
-      return new Response(JSON.stringify({}))
-    }
-
-    return new Response(JSON.stringify({}))
-  } catch (error) {
-    console.error('Error handling view submission:', error)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
