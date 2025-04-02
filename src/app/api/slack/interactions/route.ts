@@ -522,7 +522,6 @@ async function handleBlockActions(payload: BlockActionsPayload) {
   
   // We're only interested in jargon selection to update other fields
   if (actionId !== 'jargon_select') {
-    // For any other actions, just acknowledge without doing anything
     return NextResponse.json({})
   }
   
@@ -540,7 +539,7 @@ async function handleBlockActions(payload: BlockActionsPayload) {
     // Check if this is a new term selection
     const isNewTerm = selectedValue === 'new_term'
     
-    // Ensure required env vars are present
+    // Get Supabase client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!supabaseUrl || !supabaseServiceRoleKey) {
@@ -548,9 +547,9 @@ async function handleBlockActions(payload: BlockActionsPayload) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
     
-    // Create service role client and get workspace info
     const supabaseServiceRole = createClient(supabaseUrl, supabaseServiceRoleKey)
     
+    // Get workspace bot token
     const { data: workspace, error: workspaceError } = await supabaseServiceRole
       .from('workspaces')
       .select('bot_token')
@@ -574,24 +573,6 @@ async function handleBlockActions(payload: BlockActionsPayload) {
       // Show fields for new term creation
       updatedBlocks = [
         ...initialBlocks,
-        {
-          type: 'input',
-          block_id: 'custom_jargon_block',
-          element: {
-            type: 'plain_text_input',
-            action_id: 'custom_jargon_input',
-            placeholder: {
-              type: 'plain_text',
-              text: 'Enter the new jargon term',
-              emoji: true
-            }
-          },
-          label: {
-            type: 'plain_text',
-            text: 'New Jargon Term',
-            emoji: true
-          }
-        },
         {
           type: 'input',
           block_id: 'amount_block',
@@ -645,13 +626,23 @@ async function handleBlockActions(payload: BlockActionsPayload) {
 
       updatedBlocks = [
         ...initialBlocks,
-        // Show read-only fields for existing term
         {
-          type: 'section',
+          type: 'input',
           block_id: 'amount_block',
-          text: {
-            type: 'mrkdwn',
-            text: `*Amount:* $${jargonTerm.default_cost.toFixed(2)}`
+          element: {
+            type: 'plain_text_input',
+            action_id: 'amount_input',
+            initial_value: jargonTerm.default_cost.toString(),
+            placeholder: {
+              type: 'plain_text',
+              text: 'Enter amount',
+              emoji: true
+            }
+          },
+          label: {
+            type: 'plain_text',
+            text: 'Amount',
+            emoji: true
           }
         },
         {
@@ -660,22 +651,6 @@ async function handleBlockActions(payload: BlockActionsPayload) {
           text: {
             type: 'mrkdwn',
             text: `*Description:*\n${jargonTerm.description || '_No description available_'}`
-          }
-        },
-        // Add hidden input for amount to ensure it's included in submission
-        {
-          type: 'input',
-          block_id: 'hidden_amount_block',
-          optional: true,
-          element: {
-            type: 'plain_text_input',
-            action_id: 'amount_input',
-            initial_value: jargonTerm.default_cost.toString()
-          },
-          label: {
-            type: 'plain_text',
-            text: 'Amount',
-            emoji: true
           }
         }
       ]
@@ -699,7 +674,7 @@ async function handleBlockActions(payload: BlockActionsPayload) {
     return NextResponse.json({})
   } catch (error) {
     console.error('Error handling block actions:', error)
-    return NextResponse.json({})
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
