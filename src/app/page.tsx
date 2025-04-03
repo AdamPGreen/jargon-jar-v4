@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { createClient } from '@/lib/supabase/server';
 
 export default async function Home({
   searchParams,
@@ -9,35 +8,6 @@ export default async function Home({
 }) {
   const installRequired = searchParams.install_required === "true";
   const workspaceHint = searchParams.workspace_hint as string | undefined;
-  
-  // Define the redirect URL based on the environment
-  const redirectUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://jargon-jar-v4.vercel.app/auth/callback' // Production callback
-    : 'http://localhost:3000/auth/callback'; // Local development callback
-
-  // Get the Slack Sign-In URL from Supabase
-  const supabase = createClient();
-  console.log('DIAGNOSTIC (Auth Request): Starting OAuth sign-in process...');
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'slack_oidc', // Correct OIDC provider key
-    options: {
-      redirectTo: redirectUrl, // Explicit redirect URL
-    }
-  });
-
-  // Log the response data
-  console.log('DIAGNOSTIC (Auth Request): OAuth sign-in response:', {
-    hasUrl: !!data?.url,
-    urlLength: data?.url?.length,
-    error: error?.message
-  });
-
-  // Handle potential errors or missing URL
-  if (error) {
-    console.error("Error getting Slack sign-in URL:", error);
-    // Optionally handle the error state in the UI, for now, button will link to fallback
-  }
-  const signInUrl = data?.url || '/'; // Fallback to home if URL is somehow missing
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -110,7 +80,7 @@ export default async function Home({
                 variant="outline"
                 className="bg-transparent border-[#f9b507] text-[#f9b507] hover:bg-[#f9b507]/10 rounded-lg px-6"
               >
-                <a href={signInUrl}> {/* Use the generated or fallback URL */}
+                <a href="/api/auth/signin">
                   Sign in with Slack
                 </a>
               </Button>
