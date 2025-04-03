@@ -22,7 +22,20 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          const cookieValue = request.cookies.get(name)?.value;
+          
+          // Special handling for PKCE code verifier cookies - strip quotes if present
+          if (cookieValue && name.includes('-auth-token-code-verifier')) {
+            console.log(`DIAGNOSTIC (Middleware): Processing PKCE cookie: ${name}`);
+            // Remove surrounding quotes if they exist
+            if (cookieValue.startsWith('"') && cookieValue.endsWith('"')) {
+              const unquoted = cookieValue.slice(1, -1);
+              console.log(`DIAGNOSTIC (Middleware): Unquoted PKCE cookie value from "${cookieValue.substring(0, 10)}..." to "${unquoted.substring(0, 10)}..."`);
+              return unquoted;
+            }
+          }
+          
+          return cookieValue;
         },
         set(name: string, value: string, options: CookieOptions) {
           console.log(`DIAGNOSTIC (Middleware): Setting cookie: ${name}`, { valueLength: value.length, options }); // Log cookie being set
