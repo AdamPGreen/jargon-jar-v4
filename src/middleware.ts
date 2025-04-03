@@ -2,6 +2,9 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Add logging at the beginning to confirm this middleware is running
+  console.log('DIAGNOSTIC (Middleware): Running middleware for path:', request.nextUrl.pathname);
+  
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -126,10 +129,11 @@ export const config = {
      * - auth/ (Auth routes, callback needs to be accessible)
      * Exclude specific auth routes needed for the flow:
      * - /auth/slack/callback (Bot install callback)
-     * - /auth/callback (Supabase auth callback)
+     * - /auth/callback (Supabase auth callback) - NOW INCLUDED EXPLICITLY BELOW
      * - /auth/auth-code-error (Error display page)
      */
     '/((?!_next/static|_next/image|favicon.ico|api/auth/slack/callback|api/slack/|auth/auth-code-error).*)',
+    '/auth/callback', // Explicitly include the Supabase auth callback path
     /* Explanation of the negative lookahead:
      * (?!...) : Negative lookahead assertion.
      * _next/static|_next/image|favicon.ico : Matches static assets.
