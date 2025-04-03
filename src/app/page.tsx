@@ -1,13 +1,26 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { createClient } from '@/lib/supabase/server';
 
-export default function Home({
+export default async function Home({
   searchParams,
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const installationRequired = searchParams.installation === "required";
-  const workspaceDomain = searchParams.domain as string | undefined;
+  const installRequired = searchParams.install_required === "true";
+  const workspaceHint = searchParams.workspace_hint as string | undefined;
+  
+  // Get Supabase auth URL
+  const supabase = createClient();
+  const { data } = await supabase.auth.signInWithOAuth({
+    provider: 'slack',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
+    }
+  });
+  
+  // Handle potential null value for URL
+  const signInUrl = data.url || '/auth/callback';
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -47,12 +60,12 @@ export default function Home({
             </p>
 
             {/* Installation Message */}
-            {installationRequired && (
+            {installRequired && (
               <div className="bg-[#f9b507]/10 border border-[#f9b507]/20 rounded-lg p-6 mb-8">
                 <p className="text-lg font-medium mb-2 text-[#f9b507]">Installation Required</p>
                 <p className="text-white/70">
-                  {workspaceDomain 
-                    ? `The app needs to be installed in your workspace (${workspaceDomain}) first.`
+                  {workspaceHint 
+                    ? `The app needs to be installed in your workspace (${workspaceHint}) first.`
                     : "The app needs to be installed in your workspace first."}
                 </p>
               </div>
@@ -80,7 +93,7 @@ export default function Home({
                 variant="outline"
                 className="bg-transparent border-[#f9b507] text-[#f9b507] hover:bg-[#f9b507]/10 rounded-lg px-6"
               >
-                <a href="/auth/signin">
+                <a href={signInUrl}>
                   Sign in with Slack
                 </a>
               </Button>
@@ -113,7 +126,7 @@ export default function Home({
         {/* Bottom Bar */}
         <div className="w-full border-t border-white/5 p-4">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <span className="text-white/40 text-sm">© 2024 Jargon Jar</span>
+            <span className="text-white/40 text-sm">© {new Date().getFullYear()} Jargon Jar</span>
           </div>
         </div>
       </div>

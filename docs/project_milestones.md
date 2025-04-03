@@ -75,28 +75,28 @@
 ## Phase 4: Web Dashboard (Week 7-8)
 
 ### Authentication & Entry Points
-- [ ] Create unified landing page (`app/page.tsx`) with dual-purpose entry points
-  - [ ] Design and implement "Add to Slack" button with proper OAuth scopes
-  - [ ] Design and implement "Sign in to Jargon Jar" button using Supabase Auth
-  - [ ] Add conditional messaging for returning users from workspaces without the app installed
-  - [ ] Implement responsive layout for mobile/desktop with brand styling
-- [ ] Configure Supabase Auth with Slack provider
-  - [ ] Set up Slack provider in Supabase Authentication dashboard
-  - [ ] Configure correct scopes (`identity.basic`, `identity.email`, `identity.avatar`)
-  - [ ] Set up proper redirect URI for Supabase Auth callback
-  - [ ] Verify environment variables for Supabase and Slack credentials
-- [ ] Implement authentication routes and middleware
-  - [ ] Create Supabase Auth callback handler (`app/auth/callback/route.ts`)
-  - [ ] Implement workspace existence check after successful authentication
-  - [ ] Set up proper redirects based on workspace installation status
-  - [ ] Create Next.js middleware for `/dashboard/*` route protection
-  - [ ] Implement session validation and token refresh logic
-  - [ ] Configure redirects to sign-in page for unauthenticated users
-- [ ] Set up user-workspace linking
-  - [ ] Create server component logic to fetch user's Slack ID from Supabase Auth
-  - [ ] Implement lookup of existing user record in `public.users` table
-  - [ ] Handle workspace association for dashboard data fetching
-  - [ ] Create error states for users without workspace association
+- [x] Create unified landing page (`app/page.tsx`) with dual-purpose entry points
+  - [x] Design and implement "Add to Slack" button with proper OAuth scopes
+  - [x] Design and implement "Sign in to Jargon Jar" button using Supabase Auth
+  - [x] Add conditional messaging for returning users from workspaces without the app installed
+  - [x] Implement responsive layout for mobile/desktop with brand styling
+- [x] Configure Supabase Auth with Slack provider
+  - [x] Set up Slack provider in Supabase Authentication dashboard
+  - [x] Configure correct scopes (`identity.basic`, `identity.email`, `identity.avatar`)
+  - [x] Set up proper redirect URI for Supabase Auth callback
+  - [x] Verify environment variables for Supabase and Slack credentials
+- [x] Implement authentication routes and middleware
+  - [x] Create Supabase Auth callback handler (`app/auth/callback/route.ts`)
+  - [x] Implement workspace existence check after successful authentication
+  - [x] Set up proper redirects based on workspace installation status
+  - [x] Create Next.js middleware for `/dashboard/*` route protection
+  - [x] Implement session validation and token refresh logic
+  - [x] Configure redirects to sign-in page for unauthenticated users
+- [x] Set up user-workspace linking
+  - [x] Create server component logic to fetch user's Slack ID from Supabase Auth
+  - [x] Implement lookup of existing user record in `public.users` table
+  - [x] Handle workspace association for dashboard data fetching
+  - [x] Create error states for users without workspace association
 
 ### Dashboard Foundation
 - [ ] Create basic dashboard layout (`app/dashboard/layout.tsx`)
