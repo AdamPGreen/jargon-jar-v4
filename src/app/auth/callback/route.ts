@@ -13,32 +13,48 @@ export async function GET(request: NextRequest) {
   // Log all received cookies
   console.log('DIAGNOSTIC (Supabase Auth Callback): Cookies received:', request.cookies.getAll());
 
-  if (code) {
-    const supabase = createClient() // Use the standard SSR client
-    try {
-      // Log the specific PKCE cookie value right before exchange
-      const supabaseProjectId = process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.[1] || 'unknown-project-id';
-      const pkceCookieName = `sb-${supabaseProjectId}-auth-token-code-verifier`;
-      const pkceCookie = request.cookies.get(pkceCookieName);
-      console.log('DIAGNOSTIC (Supabase Auth Callback): PKCE Cookie found:', {
-        name: pkceCookieName,
-        value: pkceCookie?.value,
-        exists: !!pkceCookie
-      });
+  // --- START: Manual PKCE Cookie Unquoting --- 
+  try {
+    const supabaseProjectId = process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.[1] || 'unknown-project-id';
+    const pkceCookieName = `sb-${supabaseProjectId}-auth-token-code-verifier`;
+    const pkceCookie = request.cookies.get(pkceCookieName);
 
-      // Exchange code for session using the standard server client
-      console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to exchange code for session using @supabase/ssr client...');
+    if (pkceCookie && pkceCookie.value?.startsWith('"') && pkceCookie.value?.endsWith('"')) {
+      const unquotedValue = pkceCookie.value.slice(1, -1);
+      console.log(`DIAGNOSTIC (Supabase Auth Callback): Manually unquoting PKCE cookie ${pkceCookieName}.`);
+      // Overwrite the cookie on the request object for the subsequent createClient call
+      request.cookies.set(pkceCookieName, unquotedValue);
+    } else if (pkceCookie) {
+      console.log(`DIAGNOSTIC (Supabase Auth Callback): PKCE cookie ${pkceCookieName} found but not quoted.`);
+    } else {
+      console.log(`DIAGNOSTIC (Supabase Auth Callback): PKCE cookie ${pkceCookieName} not found.`);
+    }
+  } catch (e) {
+    console.error('DIAGNOSTIC (Supabase Auth Callback): Error during manual PKCE unquoting:', e);
+    // Proceed anyway, maybe it wasn't needed or the error is minor
+  }
+  // --- END: Manual PKCE Cookie Unquoting --- 
+
+  if (code) {
+    const supabase = createClient()
+    try {
+      // Exchange code for session using the server client
+      console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to exchange code for session using potentially modified cookie...');
       const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
       if (exchangeError) {
         console.error('DIAGNOSTIC (Supabase Auth Callback): Error exchanging code for session:', exchangeError)
+        // Log the cookie value *again* right before failure
+        const pkceCookieName = `sb-${process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.[1] || 'unknown'}-auth-token-code-verifier`;
+        const finalPkceValue = request.cookies.get(pkceCookieName)?.value;
+        console.error(`DIAGNOSTIC (Supabase Auth Callback): PKCE cookie value at failure: ${finalPkceValue}`);
         return NextResponse.redirect(`${origin}/auth/auth-code-error?message=${encodeURIComponent(exchangeError.message)}`)
       }
       
       console.log('DIAGNOSTIC (Supabase Auth Callback): Code exchange successful!');
 
-      if (!sessionData || !sessionData.user || !sessionData.session) { // Check session object too
-        console.error('DIAGNOSTIC (Supabase Auth Callback): No user or session data found after exchange.')
+      if (!sessionData || !sessionData.user) {
+        console.error('DIAGNOSTIC (Supabase Auth Callback): No user data found in session after exchange.')
         return NextResponse.redirect(`${origin}/auth/auth-code-error?message=Failed+to+retrieve+user+session`)
       }
 
@@ -106,8 +122,6 @@ export async function GET(request: NextRequest) {
       }
 
       // 3. Redirect based on workspace existence
-      // NOTE: The createClient() used above already handles setting the necessary cookies on the response.
-      // We just need to create the redirect response.
       if (workspaceExists) {
         console.log('DIAGNOSTIC (Supabase Auth Callback): Workspace exists. Redirecting to dashboard.')
         return NextResponse.redirect(`${origin}/dashboard`)
@@ -118,6 +132,8 @@ export async function GET(request: NextRequest) {
       // Access team_id via identity_data
       const teamIdHint = slackIdentityData?.team_id || 'unknown'
       return NextResponse.redirect(`${origin}/?install_required=true&workspace_hint=${teamIdHint}`)
+
+      // --- End Workspace Check --- 
 
     } catch (error) {
       console.error('DIAGNOSTIC (Supabase Auth Callback): Unexpected error during callback processing:', error)
