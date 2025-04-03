@@ -1,5 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 
+// Define types for better type safety
+type JargonTerm = {
+  id: string
+  term: string
+  description: string
+  default_cost: number
+  created_at: string
+  created_by: string | null
+  users: { display_name: string }[] | null
+}
+
 export default async function JargonPage() {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
@@ -47,16 +58,16 @@ export default async function JargonPage() {
         <div className="border-t">
           {jargonTerms && jargonTerms.length > 0 ? (
             <div className="divide-y">
-              {jargonTerms.map((term) => (
+              {jargonTerms.map((term: JargonTerm) => (
                 <div key={term.id} className="p-4">
                   <div className="flex justify-between mb-1">
                     <h3 className="font-medium">{term.term}</h3>
                     <span className="font-bold">${term.default_cost}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">{term.description}</p>
-                  {term.users && (
+                  {term.users && term.users.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-2">
-                      Added by {term.users.display_name || 'Unknown'} 
+                      Added by {term.users[0]?.display_name || 'Unknown'} 
                     </p>
                   )}
                 </div>

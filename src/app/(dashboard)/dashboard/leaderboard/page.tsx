@@ -1,5 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 
+// Define types for better type safety
+type LeaderboardEntry = {
+  charged_user_id: string
+  users: {
+    display_name: string
+    avatar_url: string | null
+  }[] // users is an array since it's from a join
+  count: number
+}
+
 export default async function LeaderboardPage() {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
@@ -20,10 +30,9 @@ export default async function LeaderboardPage() {
         display_name,
         avatar_url
       ),
-      count: count(*)
+      count
     `)
     .eq('workspace_id', userData?.workspace_id)
-    .group('charged_user_id, users.display_name, users.avatar_url')
     .order('count', { ascending: false })
     .limit(10)
 
@@ -46,7 +55,7 @@ export default async function LeaderboardPage() {
           </div>
           <div className="border-t">
             <div className="divide-y">
-              {leaderboard.map((entry, index) => (
+              {leaderboard.map((entry: LeaderboardEntry, index: number) => (
                 <div 
                   key={entry.charged_user_id} 
                   className="flex items-center justify-between p-4"
@@ -56,7 +65,9 @@ export default async function LeaderboardPage() {
                       {index + 1}
                     </div>
                     <div>
-                      <p className="font-medium">{entry.users?.display_name || 'Unknown'}</p>
+                      <p className="font-medium">
+                        {entry.users?.[0]?.display_name || 'Unknown'}
+                      </p>
                     </div>
                   </div>
                   <div>
