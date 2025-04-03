@@ -12,15 +12,29 @@ export default async function Home({
   
   // Get Supabase auth URL
   const supabase = createClient();
-  const { data } = await supabase.auth.signInWithOAuth({
-    provider: 'slack',
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
+  let signInUrl = '/auth/callback'; // Default fallback
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'slack',
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
+      }
+    });
+
+    console.log("DIAGNOSTIC (Landing Page): Supabase signInWithOAuth response:", { data, error });
+
+    if (error) {
+      console.error("DIAGNOSTIC (Landing Page): Error getting Slack sign-in URL:", error);
+      // Keep the default fallback URL or maybe redirect to an error page
+    } else if (data?.url) {
+      signInUrl = data.url;
+    } else {
+      console.warn("DIAGNOSTIC (Landing Page): No URL returned from signInWithOAuth, using fallback.");
     }
-  });
-  
-  // Handle potential null value for URL
-  const signInUrl = data.url || '/auth/callback';
+  } catch (catchError) {
+    console.error("DIAGNOSTIC (Landing Page): Exception during signInWithOAuth call:", catchError);
+  }
+
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
