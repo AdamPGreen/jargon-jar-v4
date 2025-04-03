@@ -25,6 +25,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
+          console.log(`DIAGNOSTIC (Middleware): Setting cookie: ${name}`, { valueLength: value.length, options }); // Log cookie being set
           // If the cookie is set, update the request cookies.
           request.cookies.set({
             name,
@@ -44,6 +45,7 @@ export async function middleware(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
+          console.log(`DIAGNOSTIC (Middleware): Removing cookie: ${name}`, { options }); // Log cookie being removed
           // If the cookie is removed, update the request cookies.
           request.cookies.set({
             name,
