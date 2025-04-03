@@ -32,7 +32,9 @@ export default async function DashboardLayout({
   console.log('DIAGNOSTIC (Dashboard Layout): Auth user details', {
     authUserId: session.user.id,
     hasSlackIdentity: !!slackIdentity,
-    slackUserId
+    slackUserId,
+    slackIdLength: slackUserId?.length,
+    slackIdCharCodes: slackUserId?.split('').map(c => c.charCodeAt(0))
   })
   
   if (!slackUserId) {
@@ -40,12 +42,29 @@ export default async function DashboardLayout({
     redirect('/?error=missing_slack_identity')
   }
   
+  // Debug: Try to get all users first to verify the user exists at all
+  const { data: allUsers } = await supabase
+    .from('users')
+    .select('id, slack_id, email')
+    .limit(10)
+    
+  console.log('DIAGNOSTIC (Dashboard Layout): All users:', allUsers)
+  
   // Get user data using the Slack user ID instead of the Supabase auth ID
   const { data: userData, error: userError } = await supabase
     .from('users')
     .select('id, display_name, avatar_url, workspace_id')
     .eq('slack_id', slackUserId)
     .single()
+  
+  console.log('DIAGNOSTIC (Dashboard Layout): User lookup result:', {
+    found: !!userData,
+    error: userError ? {
+      code: userError.code,
+      message: userError.message,
+      details: userError.details
+    } : null
+  })
   
   if (userError || !userData) {
     console.error('Error fetching user data:', userError)
