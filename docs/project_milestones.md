@@ -7,7 +7,7 @@
 - [x] Configure Vercel project
 - [x] Set up Supabase project
 - [x] Configure development environment
-- [ ] Set up CI/CD pipeline
+- [x] Set up CI/CD pipeline
 
 ### Project Scaffolding
 - [x] Initialize Next.js project
@@ -35,16 +35,16 @@
 ### Slack App Configuration
 - [x] Register Slack app
 - [x] Configure OAuth scopes
-- [ ] Set up slash commands
+- [x] Set up slash commands
 - [ ] Configure event subscriptions
-- [ ] Set up interactive components
+- [x] Set up interactive components
 
 ### API Development
-- [ ] Implement user endpoints
-- [ ] Create jargon term endpoints
-- [ ] Develop charge endpoints
-- [ ] Build statistics endpoints
-- [ ] Implement webhooks for Slack events
+- [x] Implement user endpoints
+- [x] Create jargon term endpoints
+- [x] Develop charge endpoints
+- [x] Build statistics endpoints
+- [x] Implement webhooks for Slack events
 
 ## Phase 3: Slack Integration (Week 5-6)
 
@@ -58,7 +58,7 @@
 - [x] Add subcommands (`charge`, `new`, `help`)
 - [x] Update Slack app configuration
 
-### Jargon Detection
+### [Postponed]Jargon Detection
 - [ ] Create message monitoring system
 - [ ] Implement jargon detection algorithm
 - [ ] Set up automatic charge creation
@@ -74,49 +74,107 @@
 
 ## Phase 4: Web Dashboard (Week 7-8)
 
+### Authentication & Entry Points
+- [ ] Create unified landing page (`app/page.tsx`) with dual-purpose entry points
+  - [ ] Design and implement "Add to Slack" button with proper OAuth scopes
+  - [ ] Design and implement "Sign in to Jargon Jar" button using Supabase Auth
+  - [ ] Add conditional messaging for returning users from workspaces without the app installed
+  - [ ] Implement responsive layout for mobile/desktop with brand styling
+- [ ] Configure Supabase Auth with Slack provider
+  - [ ] Set up Slack provider in Supabase Authentication dashboard
+  - [ ] Configure correct scopes (`identity.basic`, `identity.email`, `identity.avatar`)
+  - [ ] Set up proper redirect URI for Supabase Auth callback
+  - [ ] Verify environment variables for Supabase and Slack credentials
+- [ ] Implement authentication routes and middleware
+  - [ ] Create Supabase Auth callback handler (`app/auth/callback/route.ts`)
+  - [ ] Implement workspace existence check after successful authentication
+  - [ ] Set up proper redirects based on workspace installation status
+  - [ ] Create Next.js middleware for `/dashboard/*` route protection
+  - [ ] Implement session validation and token refresh logic
+  - [ ] Configure redirects to sign-in page for unauthenticated users
+- [ ] Set up user-workspace linking
+  - [ ] Create server component logic to fetch user's Slack ID from Supabase Auth
+  - [ ] Implement lookup of existing user record in `public.users` table
+  - [ ] Handle workspace association for dashboard data fetching
+  - [ ] Create error states for users without workspace association
+
 ### Dashboard Foundation
-- [ ] Refine Web App Authentication Flow
-  - [ ] Handle distinct sign-in vs. installation scenarios
-  - [ ] Update `/auth/callback` logic if needed
-- [ ] Implement Protected Routes for `/dashboard/*`
-  - [ ] Set up Next.js middleware for authentication checks
-  - [ ] Create dedicated sign-in page (`/sign-in`)
-- [ ] Create Basic Dashboard Layout (`app/dashboard/layout.tsx`)
+- [ ] Create basic dashboard layout (`app/dashboard/layout.tsx`)
   - [ ] Implement responsive sidebar navigation
   - [ ] Set up main content area grid/structure
   - [ ] Apply basic brand styling placeholders
+  - [ ] Add workspace selector (for users in multiple workspaces)
+  - [ ] Implement sign-out functionality
+- [ ] Set up dashboard components
+  - [ ] Create main dashboard page (`/dashboard`)
+  - [ ] Develop placeholder components for core sections
+  - [ ] Implement loading and error states
+  - [ ] Add workspace context provider
 
-### Dashboard Components & Data Integration
-- [ ] Create Main Dashboard Page (`/dashboard`)
-- [ ] Develop Placeholder Components for core sections
-- [ ] Verify/Create Necessary API Endpoints (Users, Charges, Stats)
-- [ ] Build Personal Statistics Components
+### Data Integration
+- [ ] Verify/create necessary API endpoints
+  - [ ] Implement user endpoints
+  - [ ] Create jargon term endpoints
+  - [ ] Develop charge endpoints
+  - [ ] Build statistics endpoints
+- [ ] Build personal statistics components
   - [ ] Fetch and display user-specific data
-- [ ] Implement Charge History View
-  - [ ] Fetch and display charge data with filtering/pagination
-- [ ] Create Jargon Usage Charts
-  - [ ] Fetch aggregated data and visualize using a chart library
-- [ ] Add Quick Actions Section
+  - [ ] Create personal jar total display
+  - [ ] Implement charge history view
+- [ ] Create jargon usage charts
+  - [ ] Fetch aggregated data
+  - [ ] Implement visualization using chart library
+  - [ ] Add time-based trend analysis
+- [ ] Add quick actions section
   - [ ] Implement simple forms/buttons for key actions
+  - [ ] Add jargon term management interface
+  - [ ] Create charge creation form
 
-### Leaderboard & Analytics (Part of Dashboard)
-- [ ] Implement Leaderboard UI
-- [ ] Create Analytics Visualizations (beyond basic charts)
-- [ ] Build Jargon Popularity Metrics
-- [ ] Add Time-Based Trend Analysis
-- [ ] Implement Filtering Options
+### Leaderboard & Analytics
+- [ ] Implement leaderboard UI
+  - [ ] Create workspace-wide rankings
+  - [ ] Add filtering options
+  - [ ] Implement pagination
+- [ ] Build analytics visualizations
+  - [ ] Create jargon popularity metrics
+  - [ ] Add usage trends over time
+  - [ ] Implement channel-specific analytics
+- [ ] Add filtering and search
+  - [ ] Create date range filters
+  - [ ] Implement jargon term search
+  - [ ] Add user-specific filtering
 
-### Jargon Management (Web Interface)
-- [ ] Create Jargon Browser Interface
-- [ ] Implement Jargon Addition Form
-- [ ] Build Jargon Editing Functionality
-- [ ] Add Search and Filtering
-- [ ] Implement Cost Management (if applicable via web)
+### Jargon Management
+- [ ] Create jargon browser interface
+  - [ ] Implement search and filtering
+  - [ ] Add sorting options
+  - [ ] Create pagination
+- [ ] Build jargon term management
+  - [ ] Create addition form
+  - [ ] Implement editing functionality
+  - [ ] Add deletion with confirmation
+- [ ] Implement cost management
+  - [ ] Add cost adjustment interface
+  - [ ] Create cost history view
+  - [ ] Implement bulk cost updates
 
 ### Refinement
-- [ ] Apply Final Brand Styling & Theme
-- [ ] Ensure Responsiveness Across Devices
-- [ ] Implement Loading States and Error Handling
+- [ ] Apply final brand styling & theme
+- [ ] Ensure responsiveness across devices
+- [ ] Implement loading states and error handling
+- [ ] Add accessibility features
+- [ ] Optimize performance
+
+### Next Session Prompt
+"Let's start implementing the web dashboard entry points and authentication flow. First, let's create the unified landing page (`app/page.tsx`) with both the 'Add to Slack' and 'Sign in to Jargon Jar' buttons. We'll need to:
+
+1. Create the landing page layout with branding elements
+2. Implement the 'Add to Slack' button with the correct installation URL
+3. Implement the 'Sign in to Jargon Jar' button using Supabase Auth
+4. Handle query parameters for installation requirement messaging
+5. Set up responsive design for all screen sizes
+
+Can you help me implement this landing page as our first step towards the web dashboard?"
 
 ## Phase 5: Testing & Refinement (Week 9-10)
 
@@ -380,3 +438,68 @@ Can you help me implement this feature?"
 5. Update our Slack app configuration to use the new command structure
 
 This will require modifying the existing command handler, creating helper functions for the different subcommands, and updating the Slack app settings. Can you help me implement this new command structure?"
+
+## Web Dashboard Authentication Implementation (Week 7)
+
+### Goal
+Enable a clear entry path for users to either install the app on new workspaces or sign into the web dashboard for workspaces where the app is already installed.
+
+### Implementation Plan
+1. **Landing Page Development:**
+   - [ ] Create unified landing page (`app/page.tsx`) with dual-purpose entry points
+   - [ ] Design and implement "Add to Slack" button with proper OAuth scopes
+   - [ ] Design and implement "Sign in to Jargon Jar" button using Supabase Auth
+   - [ ] Add conditional messaging for returning users from workspaces without the app installed
+   - [ ] Implement responsive layout for mobile/desktop with brand styling
+
+2. **Supabase Auth Configuration:**
+   - [ ] Configure Slack provider in Supabase Authentication dashboard
+   - [ ] Set correct scopes (`identity.basic`, `identity.email`, `identity.avatar`)
+   - [ ] Configure proper redirect URI for Supabase Auth callback
+   - [ ] Verify environment variables for Supabase and Slack credentials
+
+3. **Authentication Routes:**
+   - [ ] Create Supabase Auth callback handler (`app/auth/callback/route.ts`)
+   - [ ] Implement workspace existence check after successful authentication
+   - [ ] Set up proper redirects based on workspace installation status
+   - [ ] Implement session cookie management via Supabase SSR
+
+4. **Protected Routes & Middleware:**
+   - [ ] Create Next.js middleware for `/dashboard/*` route protection
+   - [ ] Implement session validation and token refresh logic
+   - [ ] Configure redirects to sign-in page for unauthenticated users
+   - [ ] Test middleware with both authenticated and unauthenticated users
+
+5. **User-Workspace Linking:**
+   - [ ] Create server component logic to fetch user's Slack ID from Supabase Auth
+   - [ ] Implement lookup of existing user record in `public.users` table
+   - [ ] Handle workspace association for dashboard data fetching
+   - [ ] Create error states for users without workspace association
+
+6. **Dashboard Layout:**
+   - [ ] Create dashboard layout component with session context
+   - [ ] Implement workspace data fetching based on authenticated user
+   - [ ] Add workspace selector (for users in multiple workspaces)
+   - [ ] Create loading and error states for dashboard components
+
+7. **Sign-Out Functionality:**
+   - [ ] Implement sign-out button in dashboard header/sidebar
+   - [ ] Create sign-out handler with proper session termination
+   - [ ] Add redirect to landing page after successful sign-out
+
+### Technical Considerations
+- Using `@supabase/ssr` for Next.js App Router integration
+- Separate the Slack *installation* flow (bot permissions) from the web *authentication* flow (user identity)
+- Leverage existing `workspaces` and `users` tables populated during app installation
+- Implement proper RLS policies for data access in dashboard components
+
+### Next Session Prompt
+"Let's start implementing the web dashboard entry points and authentication flow. First, let's create the unified landing page (`app/page.tsx`) with both the 'Add to Slack' and 'Sign in to Jargon Jar' buttons. We'll need to:
+
+1. Create the landing page layout with branding elements
+2. Implement the 'Add to Slack' button with the correct installation URL
+3. Implement the 'Sign in to Jargon Jar' button using Supabase Auth
+4. Handle query parameters for installation requirement messaging
+5. Set up responsive design for all screen sizes
+
+Can you help me implement this landing page as our first step towards the web dashboard?"
