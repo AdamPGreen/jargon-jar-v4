@@ -53,7 +53,10 @@
 - [x] Build charge modal UI
 - [x] Create jargon selection interface
 - [x] Implement user selection
-- [ ] Add charge confirmation
+- [x] Add charge confirmation
+- [x] Implement unified `/jargon` command structure
+- [x] Add subcommands (`charge`, `new`, `help`)
+- [x] Update Slack app configuration
 
 ### Jargon Detection
 - [ ] Create message monitoring system
@@ -71,26 +74,49 @@
 
 ## Phase 4: Web Dashboard (Week 7-8)
 
-### Dashboard UI
-- [ ] Create dashboard layout
-- [ ] Build personal statistics components
-- [ ] Implement charge history view
-- [ ] Create jargon usage charts
-- [ ] Add quick actions section
+### Dashboard Foundation
+- [ ] Refine Web App Authentication Flow
+  - [ ] Handle distinct sign-in vs. installation scenarios
+  - [ ] Update `/auth/callback` logic if needed
+- [ ] Implement Protected Routes for `/dashboard/*`
+  - [ ] Set up Next.js middleware for authentication checks
+  - [ ] Create dedicated sign-in page (`/sign-in`)
+- [ ] Create Basic Dashboard Layout (`app/dashboard/layout.tsx`)
+  - [ ] Implement responsive sidebar navigation
+  - [ ] Set up main content area grid/structure
+  - [ ] Apply basic brand styling placeholders
 
-### Leaderboard & Analytics
-- [ ] Implement leaderboard UI
-- [ ] Create analytics visualizations
-- [ ] Build jargon popularity metrics
-- [ ] Add time-based trend analysis
-- [ ] Implement filtering options
+### Dashboard Components & Data Integration
+- [ ] Create Main Dashboard Page (`/dashboard`)
+- [ ] Develop Placeholder Components for core sections
+- [ ] Verify/Create Necessary API Endpoints (Users, Charges, Stats)
+- [ ] Build Personal Statistics Components
+  - [ ] Fetch and display user-specific data
+- [ ] Implement Charge History View
+  - [ ] Fetch and display charge data with filtering/pagination
+- [ ] Create Jargon Usage Charts
+  - [ ] Fetch aggregated data and visualize using a chart library
+- [ ] Add Quick Actions Section
+  - [ ] Implement simple forms/buttons for key actions
 
-### Jargon Management
-- [ ] Create jargon browser interface
-- [ ] Implement jargon addition form
-- [ ] Build jargon editing functionality
-- [ ] Add search and filtering
-- [ ] Implement cost management
+### Leaderboard & Analytics (Part of Dashboard)
+- [ ] Implement Leaderboard UI
+- [ ] Create Analytics Visualizations (beyond basic charts)
+- [ ] Build Jargon Popularity Metrics
+- [ ] Add Time-Based Trend Analysis
+- [ ] Implement Filtering Options
+
+### Jargon Management (Web Interface)
+- [ ] Create Jargon Browser Interface
+- [ ] Implement Jargon Addition Form
+- [ ] Build Jargon Editing Functionality
+- [ ] Add Search and Filtering
+- [ ] Implement Cost Management (if applicable via web)
+
+### Refinement
+- [ ] Apply Final Brand Styling & Theme
+- [ ] Ensure Responsiveness Across Devices
+- [ ] Implement Loading States and Error Handling
 
 ## Phase 5: Testing & Refinement (Week 9-10)
 
