@@ -119,7 +119,8 @@ export async function POST(req: Request) {
             type: 'plain_text',
             text: 'What jargon was used?',
             emoji: true
-          }
+          },
+          dispatch_action: true
         },
         {
           type: 'actions',
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: '➕ Add New Jargon',
+                text: 'Add New Jargon',
                 emoji: true
               },
               action_id: 'add_new_jargon'
