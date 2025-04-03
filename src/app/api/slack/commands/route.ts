@@ -114,7 +114,8 @@ export async function POST(req: Request) {
           args: subcommandArgs
         })
       
-      case 'add-term': // Handle both versions of the command
+      case 'new':
+      case 'add-term':
       case 'addterm':
         return await handleAddTermCommand({
           slack,
@@ -454,7 +455,7 @@ async function handleHelpCommand({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${command} add-term*\nAdd a new jargon term to the dictionary. Opens a modal to enter details.`
+          text: `*${command} new*\nAdd a new jargon term to the dictionary. Opens a modal to enter details.`
         }
       },
       {
