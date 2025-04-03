@@ -2,31 +2,33 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const state = requestUrl.searchParams.get('state') // TODO: Add state verification
   const origin = requestUrl.origin
 
-  console.log('DIAGNOSTIC (Callback): Received callback request', { code })
+  console.log('DIAGNOSTIC (Callback): Received callback request', { code, state })
 
   if (!code) {
     console.error('DIAGNOSTIC (Callback): No code provided in callback')
-    return NextResponse.redirect(`${origin}/sign-in?error=No+code+provided`)
+    return NextResponse.redirect(`${origin}/auth/signin?error=No+code+provided`)
   }
+
+  // TODO: Verify state parameter here against a stored value (e.g., in cookies)
 
   const clientId = process.env.SLACK_CLIENT_ID || ''
   const clientSecret = process.env.SLACK_CLIENT_SECRET || ''
 
   if (!clientId || !clientSecret) {
     console.error('DIAGNOSTIC (Callback): Missing SLACK_CLIENT_ID or SLACK_CLIENT_SECRET env vars')
-    return NextResponse.redirect(`${origin}/sign-in?error=Server+configuration+error`)
+    return NextResponse.redirect(`${origin}/auth/signin?error=Server+configuration+error`)
   }
 
   try {
     console.log('DIAGNOSTIC (Callback): Exchanging code for tokens...')
-    // 1. Exchange the code for access tokens (using correct redirect_uri)
+    // 1. Exchange the code for access tokens
     const tokenResponse = await fetch('https://slack.com/api/oauth.v2.access', {
       method: 'POST',
       headers: {
@@ -35,27 +37,67 @@ export async function GET(request: NextRequest) {
       },
       body: new URLSearchParams({
         code: code,
-        redirect_uri: `${origin}/api/auth/slack/callback` // Match the URI used in signInWithOAuth
+        redirect_uri: `${origin}/api/auth/slack/callback` // Ensure this matches the redirect URI sent initially
       }),
     })
 
     const tokenData = await tokenResponse.json()
     console.log('DIAGNOSTIC (Callback): Token exchange response data:', JSON.stringify(tokenData, null, 2))
 
-    // Check if the exchange was successful and included user details
-    if (!tokenData.ok || !tokenData.authed_user || !tokenData.authed_user.id || !tokenData.team || !tokenData.team.id) {
-      console.error('DIAGNOSTIC (Callback): Error exchanging code or missing required user/team data:', tokenData.error || 'Missing data')
-      return NextResponse.redirect(`${origin}/sign-in?error=Authentication+failed`)
+    if (!tokenData.ok || !tokenData.authed_user || !tokenData.access_token) {
+      console.error('DIAGNOSTIC (Callback): Error exchanging code for tokens or missing required data:', tokenData.error || 'Missing data')
+      return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+exchange+code`)
     }
 
+    const botToken = tokenData.access_token // This is the bot token
+    const userToken = tokenData.authed_user.access_token // User token
     const userId = tokenData.authed_user.id
-    const workspaceSlackId = tokenData.team.id // This is the Slack Team ID (e.g., T12345)
-    const userAccessToken = tokenData.authed_user.access_token // User token (might be needed for specific actions, but maybe not for just auth)
-    const botToken = tokenData.access_token // Bot token (likely only present during full installation flow)
+    const workspaceId = tokenData.team.id
+    const workspaceName = tokenData.team.name
 
-    console.log('DIAGNOSTIC (Callback): Tokens and IDs received:', { userId, workspaceSlackId, hasUserToken: !!userAccessToken, hasBotToken: !!botToken });
+    console.log('DIAGNOSTIC (Callback): Tokens and IDs received:', { botToken: '[REDACTED]', userToken: '[REDACTED]', userId, workspaceId, workspaceName });
 
-    // --- Setup Admin Client for DB operations ---
+    // --- Fetch team info to get domain ---
+    console.log('DIAGNOSTIC (Callback): Fetching team info using bot token...')
+    const teamInfoResponse = await fetch(`https://slack.com/api/team.info?team=${workspaceId}`, { // Use workspaceId from tokenData
+      headers: {
+        'Authorization': `Bearer ${botToken}`,
+      },
+    })
+    const teamInfoData = await teamInfoResponse.json()
+    console.log('DIAGNOSTIC (Callback): Team info response data:', JSON.stringify(teamInfoData, null, 2))
+
+    if (!teamInfoData.ok || !teamInfoData.team) {
+        console.error('DIAGNOSTIC (Callback): Error getting team info:', teamInfoData.error || 'Missing team data')
+        return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+get+team+info`)
+    }
+    const workspaceDomain = teamInfoData.team.domain // Extract domain
+    console.log('DIAGNOSTIC (Callback): Workspace domain extracted:', workspaceDomain)
+    // --- End fetch team info ---
+
+    // We need the user's profile info (email, name, avatar)
+    console.log('DIAGNOSTIC (Callback): Fetching user info using bot token...')
+    const userInfoResponse = await fetch(`https://slack.com/api/users.info?user=${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${botToken}`,
+      },
+    })
+    const userInfoData = await userInfoResponse.json()
+    console.log('DIAGNOSTIC (Callback): User info response data:', JSON.stringify(userInfoData, null, 2))
+
+    if (!userInfoData.ok || !userInfoData.user) {
+      console.error('DIAGNOSTIC (Callback): Error getting user info:', userInfoData.error || 'Missing user data')
+      return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+get+user+info`)
+    }
+
+    const userProfile = userInfoData.user.profile
+    const userEmail = userProfile.email
+    const userDisplayName = userProfile.display_name || userProfile.real_name || 'Unknown User'
+    const userAvatarUrl = userProfile.image_512 || userProfile.image_192 || userProfile.image_72
+
+    console.log('DIAGNOSTIC (Callback): User details extracted:', { userEmail, userDisplayName, userAvatarUrl: '[REDACTED]' })
+
+    // --- Use Admin Client for DB writes to bypass RLS ---
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || '',
       process.env.SUPABASE_SERVICE_ROLE_KEY || '',
@@ -63,167 +105,75 @@ export async function GET(request: NextRequest) {
     )
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('DIAGNOSTIC (Callback): SUPABASE_SERVICE_ROLE_KEY env var is missing!')
-      return NextResponse.redirect(`${origin}/sign-in?error=Server+config+error+(Admin)`);
+      return NextResponse.redirect(`${origin}/auth/signin?error=Server+config+error+(Admin)`);
     }
-    // ---------------------------------------------
+    // ------------------------------------------------------
 
-    // 2. Check if the workspace exists in our DB
-    console.log('DIAGNOSTIC (Callback): Checking for existing workspace with slack_id:', workspaceSlackId)
+    // 2. Create or update workspace using Admin Client
+    const workspaceUpsertData = {
+      slack_id: workspaceId,
+      name: workspaceName,
+      domain: workspaceDomain, // Include domain
+      bot_token: botToken,
+      token: userToken || '', // Include user token (handle potential null)
+    }
+    console.log('DIAGNOSTIC (Callback): Upserting workspace with data (Admin Client):', JSON.stringify({...workspaceUpsertData, bot_token: '[REDACTED]', token: '[REDACTED]'}, null, 2))
+
     const { data: workspace, error: workspaceError } = await supabaseAdmin
       .from('workspaces')
-      .select('id, slack_id, bot_token') // Select bot_token too
-      .eq('slack_id', workspaceSlackId)
+      .upsert(workspaceUpsertData, { onConflict: 'slack_id' })
+      .select('id')
       .single()
 
-    if (workspaceError && workspaceError.code !== 'PGRST116') { // Ignore "No rows found" error
-      console.error('DIAGNOSTIC (Callback): Error checking workspace:', workspaceError)
-      return NextResponse.redirect(`${origin}/sign-in?error=Database+error+checking+workspace`)
+    if (workspaceError || !workspace) {
+      console.error('DIAGNOSTIC (Callback): Error upserting workspace (Admin Client):', workspaceError)
+      return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+save+workspace`)
     }
+    console.log('DIAGNOSTIC (Callback): Workspace upsert successful. DB Workspace ID:', workspace.id)
 
-    if (!workspace) {
-      // Workspace not found - this user tried web sign-in without prior installation
-      console.warn('DIAGNOSTIC (Callback): Workspace not found for slack_id. Installation likely required.', workspaceSlackId)
-      // If we received a bot token HERE, it means this *was* an installation flow, handle it.
-      if (botToken) {
-        console.log('DIAGNOSTIC (Callback): Bot token received, proceeding with installation logic...')
-        // --- Installation Logic (Similar to previous version) ---
-        const workspaceName = tokenData.team.name
-
-        // Fetch team info for domain (if needed, might already have it)
-        const teamInfoResponse = await fetch(`https://slack.com/api/team.info?team=${workspaceSlackId}`, { 
-          headers: { 'Authorization': `Bearer ${botToken}` },
-        })
-        const teamInfoData = await teamInfoResponse.json()
-        if (!teamInfoData.ok || !teamInfoData.team) {
-            console.error('DIAGNOSTIC (Callback): Error getting team info during install:', teamInfoData.error)
-            return NextResponse.redirect(`${origin}/sign-in?error=Failed+to+get+team+info+during+install`)
-        }
-        const workspaceDomain = teamInfoData.team.domain
-
-        const workspaceUpsertData = {
-          slack_id: workspaceSlackId,
-          name: workspaceName,
-          domain: workspaceDomain,
-          bot_token: botToken,
-          token: userAccessToken || '', 
-        }
-        const { data: newWorkspace, error: newWorkspaceError } = await supabaseAdmin
-          .from('workspaces')
-          .upsert(workspaceUpsertData, { onConflict: 'slack_id' })
-          .select('id')
-          .single()
-
-        if (newWorkspaceError || !newWorkspace) {
-          console.error('DIAGNOSTIC (Callback): Error upserting new workspace:', newWorkspaceError)
-          return NextResponse.redirect(`${origin}/sign-in?error=Failed+to+save+workspace+during+install`)
-        }
-        // Continue with user upsert using newWorkspace.id...
-         console.log('DIAGNOSTIC (Callback): New workspace created/updated:', newWorkspace.id)
-         // Fall through to user upsert logic below, using newWorkspace.id
-         const workspaceIdDB = newWorkspace.id
-          // ... rest of user creation/update logic ...
-           // Fetch user info
-        console.log('DIAGNOSTIC (Callback): Fetching user info (install flow)...')
-        const userInfoResponse = await fetch(`https://slack.com/api/users.info?user=${userId}`, {
-          headers: { 'Authorization': `Bearer ${botToken}` }, // Use bot token for user info
-        })
-        const userInfoData = await userInfoResponse.json()
-        if (!userInfoData.ok || !userInfoData.user) {
-          console.error('DIAGNOSTIC (Callback): Error getting user info (install flow):', userInfoData.error)
-          return NextResponse.redirect(`${origin}/sign-in?error=Failed+to+get+user+info`)
-        }
-
-        const userProfile = userInfoData.user.profile
-        const userEmail = userProfile.email
-        const userDisplayName = userProfile.display_name || userProfile.real_name || 'Unknown User'
-        const userAvatarUrl = userProfile.image_512 || userProfile.image_192 || userProfile.image_72
-
-        console.log('DIAGNOSTIC (Callback): Upserting user (install flow):', { userId, userEmail, workspaceIdDB })
-        const { error: userError } = await supabaseAdmin
-          .from('users')
-          .upsert({
-            slack_id: userId,
-            email: userEmail,
-            display_name: userDisplayName,
-            avatar_url: userAvatarUrl,
-            workspace_id: workspaceIdDB,
-          }, { onConflict: 'slack_id' })
-
-        if (userError) {
-          console.error('DIAGNOSTIC (Callback): Error upserting user (install flow):', userError)
-          return NextResponse.redirect(`${origin}/sign-in?error=Failed+to+save+user`)
-        }
-        console.log('DIAGNOSTIC (Callback): User upsert successful (install flow).')
-        // Session creation will happen via Supabase OAuth exchange below
-      } else {
-        // No bot token, and workspace doesn't exist - redirect with error
-        return NextResponse.redirect(`${origin}/sign-in?error=App+not+installed+in+this+workspace`)
-      }
-    } else {
-      // Workspace exists - proceed with regular sign-in user update
-      console.log('DIAGNOSTIC (Callback): Workspace found. DB ID:', workspace.id)
-      const workspaceIdDB = workspace.id
-      const existingBotToken = workspace.bot_token // Use the existing bot token from DB
-
-      if (!existingBotToken) {
-          console.error('DIAGNOSTIC (Callback): Existing workspace found but missing bot token!', workspace.id)
-          return NextResponse.redirect(`${origin}/sign-in?error=Workspace+configuration+error`);
-      }
-
-      // Fetch user info
-      console.log('DIAGNOSTIC (Callback): Fetching user info (sign-in flow)...')
-      const userInfoResponse = await fetch(`https://slack.com/api/users.info?user=${userId}`, {
-        headers: { 'Authorization': `Bearer ${existingBotToken}` }, // Use existing bot token
-      })
-      const userInfoData = await userInfoResponse.json()
-      if (!userInfoData.ok || !userInfoData.user) {
-        console.error('DIAGNOSTIC (Callback): Error getting user info (sign-in flow):', userInfoData.error)
-        // Don't fail the whole sign-in, maybe user info is unavailable temporarily?
-        // Proceed to session creation, but log the error.
-      } else {
-         const userProfile = userInfoData.user.profile
-         const userEmail = userProfile.email
-         const userDisplayName = userProfile.display_name || userProfile.real_name || 'Unknown User'
-         const userAvatarUrl = userProfile.image_512 || userProfile.image_192 || userProfile.image_72
-
-         console.log('DIAGNOSTIC (Callback): Upserting user (sign-in flow):', { userId, userEmail, workspaceIdDB })
-         // Update user details
-         const { error: userError } = await supabaseAdmin
-           .from('users')
-           .upsert({
-             slack_id: userId,
-             email: userEmail,
-             display_name: userDisplayName,
-             avatar_url: userAvatarUrl,
-             workspace_id: workspaceIdDB,
-           }, { onConflict: 'slack_id' })
-
-         if (userError) {
-           console.error('DIAGNOSTIC (Callback): Error upserting user (sign-in flow):', userError)
-           // Don't fail sign-in for user update error, just log it.
-         }
-         console.log('DIAGNOSTIC (Callback): User upsert successful (sign-in flow).')
-      }
-       // Session creation will happen via Supabase OAuth exchange below
+    // 3. Create or update user using Admin Client
+    const userUpsertData = {
+      slack_id: userId,
+      email: userEmail,
+      display_name: userDisplayName,
+      avatar_url: userAvatarUrl,
+      workspace_id: workspace.id,
     }
+    console.log('DIAGNOSTIC (Callback): Upserting user with data (Admin Client):', JSON.stringify({...userUpsertData, avatar_url: '[REDACTED]'}, null, 2))
 
-    // 3. Exchange the code for a Supabase session (This happens automatically via cookies)
-    // Use the server client (which reads cookies set by the helper) to handle session
+    const { error: userError } = await supabaseAdmin
+      .from('users')
+      .upsert(userUpsertData, { onConflict: 'slack_id' })
+
+    if (userError) {
+      console.error('DIAGNOSTIC (Callback): Error upserting user (Admin Client):', userError)
+      return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+save+user`)
+    }
+    console.log('DIAGNOSTIC (Callback): User upsert successful.')
+
+    // --- Switch back to Server Client for user-context operations ---
     const supabaseServer = createServerClient()
-    const { error: sessionError } = await supabaseServer.auth.exchangeCodeForSession(code)
+    // --------------------------------------------------------------
+
+    // 4. Create a session for the user who installed the app
+    console.log('DIAGNOSTIC (Callback): Attempting to sign in user with email:', userEmail)
+    const { error: sessionError } = await supabaseServer.auth.signInWithPassword({
+      email: userEmail,
+      password: userId,
+    })
 
     if (sessionError) {
-      console.error('DIAGNOSTIC (Callback): Error exchanging code for Supabase session:', sessionError)
-      return NextResponse.redirect(`${origin}/sign-in?error=Failed+to+create+session`)
+      console.error('DIAGNOSTIC (Callback): Error creating session:', sessionError)
+      return NextResponse.redirect(`${origin}/auth/signin?error=Failed+to+create+session`)
     }
+    console.log('DIAGNOSTIC (Callback): Session creation successful.')
 
-    console.log('DIAGNOSTIC (Callback): Session exchange successful. Redirecting to dashboard...')
-    // Success! Redirect to the dashboard page
-    return NextResponse.redirect(`${origin}/dashboard`)
+    // Success! Redirect to home page
+    console.log('DIAGNOSTIC (Callback): Redirecting to origin:', origin)
+    return NextResponse.redirect(origin)
 
   } catch (error) {
     console.error('DIAGNOSTIC (Callback): Unexpected error in OAuth callback:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Internal+server+error'
-    return NextResponse.redirect(`${origin}/sign-in?error=${encodeURIComponent(errorMessage)}`)
+    return NextResponse.redirect(`${origin}/auth/signin?error=Internal+server+error`)
   }
 }

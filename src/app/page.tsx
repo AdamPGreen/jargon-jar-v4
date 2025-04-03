@@ -1,103 +1,122 @@
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
-export default function Home() {
+export default function Home({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
+  const installationRequired = searchParams.installation === "required";
+  const workspaceDomain = searchParams.domain as string | undefined;
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-black text-white overflow-hidden">
+      {/* Background Elements */}
+      <div className="fixed inset-0">
+        {/* Subtle Grid Pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f9b507_1px,transparent_1px),linear-gradient(to_bottom,#f9b507_1px,transparent_1px)] bg-[size:8rem_8rem] opacity-[0.03]" />
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-black to-black" />
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Main Content */}
+      <div className="relative min-h-screen flex flex-col">
+        {/* Top Bar */}
+        <div className="w-full border-b border-white/5 p-4">
+          <div className="max-w-7xl mx-auto flex justify-between items-center">
+            <span className="font-mono text-sm text-white/60">Jargon Jar</span>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Hero Section */}
+        <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
+          <div className="relative z-10 max-w-4xl mx-auto text-center">
+            {/* Title */}
+            <div className="relative mb-8">
+              <h1 className="text-6xl md:text-8xl font-bold tracking-tight leading-none mb-4">
+                JARGON
+                <br />
+                <span className="text-[#f9b507]">JAR</span>
+              </h1>
+              <div className="absolute -top-8 -right-8 w-32 h-32 bg-[#f9b507] rounded-full opacity-10 blur-3xl" />
+            </div>
+
+            {/* Tagline */}
+            <p className="text-xl md:text-2xl mb-12 font-mono text-white/80">
+              Tax your team's corporate jargon
+            </p>
+
+            {/* Installation Message */}
+            {installationRequired && (
+              <div className="bg-[#f9b507]/10 border border-[#f9b507]/20 rounded-lg p-6 mb-8">
+                <p className="text-lg font-medium mb-2 text-[#f9b507]">Installation Required</p>
+                <p className="text-white/70">
+                  {workspaceDomain 
+                    ? `The app needs to be installed in your workspace (${workspaceDomain}) first.`
+                    : "The app needs to be installed in your workspace first."}
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-16">
+              {/* Add to Slack Button */}
+              <a
+                href="https://slack.com/oauth/v2/authorize?client_id=7831214798177.8652143181591&scope=app_mentions:read,channels:history,chat:write,commands,groups:history,im:write,users:read,users:read.email,team:read&user_scope=identity.basic,identity.avatar,identity.email,identity.team"
+              >
+                <img
+                  alt="Add to Slack"
+                  height="40"
+                  width="139"
+                  src="https://platform.slack-edge.com/img/add_to_slack.png"
+                  srcSet="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x"
+                  className="transform hover:scale-105 transition-transform"
+                />
+              </a>
+
+              {/* Sign In Button */}
+              <Button
+                asChild
+                variant="outline"
+                className="bg-transparent border-[#f9b507] text-[#f9b507] hover:bg-[#f9b507]/10 rounded-lg px-6"
+              >
+                <a href="/auth/signin">
+                  Sign in with Slack
+                </a>
+              </Button>
+            </div>
+
+            {/* Feature Highlights */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+              <div className="p-6 rounded-lg bg-white/5 hover:bg-white/[0.07] transition-colors">
+                <h3 className="text-[#f9b507] font-medium text-lg mb-2">Charge</h3>
+                <p className="text-white/70 text-sm">
+                  Tax your team's corporate jargon with the /charge command
+                </p>
+              </div>
+              <div className="p-6 rounded-lg bg-white/5 hover:bg-white/[0.07] transition-colors">
+                <h3 className="text-[#f9b507] font-medium text-lg mb-2">Track</h3>
+                <p className="text-white/70 text-sm">
+                  Monitor jargon usage and collect fines in your workspace
+                </p>
+              </div>
+              <div className="p-6 rounded-lg bg-white/5 hover:bg-white/[0.07] transition-colors">
+                <h3 className="text-[#f9b507] font-medium text-lg mb-2">Leaderboard</h3>
+                <p className="text-white/70 text-sm">
+                  See who's the biggest corporate jargon offender
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="w-full border-t border-white/5 p-4">
+          <div className="max-w-7xl mx-auto flex justify-between items-center">
+            <span className="text-white/40 text-sm">© 2024 Jargon Jar</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
