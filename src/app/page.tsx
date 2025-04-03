@@ -17,11 +17,19 @@ export default async function Home({
 
   // Get the Slack Sign-In URL from Supabase
   const supabase = createClient();
+  console.log('DIAGNOSTIC (Auth Request): Starting OAuth sign-in process...');
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'slack_oidc', // Correct OIDC provider key
     options: {
       redirectTo: redirectUrl, // Explicit redirect URL
     }
+  });
+
+  // Log the response data
+  console.log('DIAGNOSTIC (Auth Request): OAuth sign-in response:', {
+    hasUrl: !!data?.url,
+    urlLength: data?.url?.length,
+    error: error?.message
   });
 
   // Handle potential errors or missing URL

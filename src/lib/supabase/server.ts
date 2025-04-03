@@ -2,7 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export function createClient() {
-  const cookieStore = cookies()
+  console.log('DIAGNOSTIC (Supabase Client): Creating new client...');
+  const cookieStore = cookies();
+  console.log('DIAGNOSTIC (Supabase Client): Cookie store:', {
+    hasStore: !!cookieStore,
+    storeType: cookieStore?.constructor?.name
+  });
 
   // Check for environment variables
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
