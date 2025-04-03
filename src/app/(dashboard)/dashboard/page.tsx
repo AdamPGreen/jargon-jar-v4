@@ -1,5 +1,31 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { ActivityFeed } from '@/components/activity-feed'
+
+// Define types for the data coming from Supabase
+type SupabaseActivityItem = {
+  id: string
+  amount: number
+  channel_id: string
+  created_at: string
+  charging_user: {
+    id: string
+    display_name: string
+    avatar_url: string | null
+  }[]
+  charged_user: {
+    id: string
+    display_name: string
+    avatar_url: string | null
+  }[]
+  jargon_term: {
+    id: string
+    term: string
+  }[]
+  jargon_terms: {
+    category: string | null
+  }[]
+}
 
 export default async function DashboardPage() {
   const supabase = createClient()
@@ -40,6 +66,64 @@ export default async function DashboardPage() {
     .from('charges')
     .select('*', { count: 'exact', head: true })
     .eq('charging_user_id', userData?.id)
+
+  // Get recent activity (both charges made and received)
+  const { data: recentActivity } = await supabaseAdmin
+    .from('charges')
+    .select(`
+      id,
+      amount,
+      channel_id,
+      created_at,
+      charging_user:charging_user_id(
+        id,
+        display_name,
+        avatar_url
+      ),
+      charged_user:charged_user_id(
+        id,
+        display_name,
+        avatar_url
+      ),
+      jargon_term:jargon_term_id(
+        id,
+        term
+      ),
+      jargon_terms:jargon_term_id(
+        category
+      )
+    `)
+    .or(`charged_user_id.eq.${userData?.id},charging_user_id.eq.${userData?.id}`)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  // Transform the Supabase nested array results into the format ActivityFeed expects
+  const processedActivity = recentActivity?.map((item: SupabaseActivityItem) => {
+    const isReceived = item.charged_user[0].id === userData?.id;
+    
+    return {
+      id: item.id,
+      type: isReceived ? "received" as const : "made" as const,
+      charging_user: {
+        id: item.charging_user[0].id,
+        display_name: item.charging_user[0].display_name,
+        avatar_url: item.charging_user[0].avatar_url
+      },
+      charged_user: {
+        id: item.charged_user[0].id,
+        display_name: item.charged_user[0].display_name,
+        avatar_url: item.charged_user[0].avatar_url
+      },
+      jargon_term: {
+        id: item.jargon_term[0].id,
+        term: item.jargon_term[0].term
+      },
+      amount: item.amount,
+      channel_id: item.channel_id,
+      category: item.jargon_terms[0]?.category || null,
+      created_at: item.created_at
+    }
+  }) || []
 
   return (
     <div className="space-y-6">
@@ -97,11 +181,7 @@ export default async function DashboardPage() {
             Your recent jargon charges and payments.
           </p>
         </div>
-        <div className="p-6 border-t">
-          <div className="text-center py-12 text-muted-foreground">
-            <p>Your activity will appear here.</p>
-          </div>
-        </div>
+        <ActivityFeed activities={processedActivity} userId={userData?.id} />
       </div>
     </div>
   )
