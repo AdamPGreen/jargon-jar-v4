@@ -3,46 +3,6 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Helper function to manually create a supabase client with cookie handling for PKCE
-function createCustomClient(req: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  
-  return createAdminClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false,
-      flowType: 'pkce',
-      // @ts-ignore - cookies property is available but not in TypeScript types
-      cookies: {
-        get(name: string) {
-          let cookieValue = req.cookies.get(name)?.value;
-          // Specifically handle the code verifier cookie
-          if (cookieValue && name.includes('-auth-token-code-verifier')) {
-            console.log('DIAGNOSTIC (Auth Callback): Processing PKCE cookie:', name);
-            // Remove surrounding quotes if they exist
-            if (cookieValue.startsWith('"') && cookieValue.endsWith('"')) {
-              cookieValue = cookieValue.slice(1, -1);
-              console.log('DIAGNOSTIC (Auth Callback): Unquoted PKCE cookie value');
-            }
-          }
-          return cookieValue;
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        set(name: string, value: string, options: Record<string, any>) {
-          // This will be called by Supabase Auth after successful auth
-          // We don't need to do anything here for the callback
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        remove(name: string, options: Record<string, any>) {
-          // Not needed for auth callback
-        },
-      }
-    }
-  });
-}
-
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
@@ -54,12 +14,20 @@ export async function GET(request: NextRequest) {
   console.log('DIAGNOSTIC (Supabase Auth Callback): Cookies received:', request.cookies.getAll());
 
   if (code) {
+    const supabase = createClient() // Use the standard SSR client
     try {
-      // Use our custom client with PKCE cookie handling
-      const supabase = createCustomClient(request);
-      
-      // Exchange code for session using the server client
-      console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to exchange code for session...');
+      // Log the specific PKCE cookie value right before exchange
+      const supabaseProjectId = process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.[1] || 'unknown-project-id';
+      const pkceCookieName = `sb-${supabaseProjectId}-auth-token-code-verifier`;
+      const pkceCookie = request.cookies.get(pkceCookieName);
+      console.log('DIAGNOSTIC (Supabase Auth Callback): PKCE Cookie found:', {
+        name: pkceCookieName,
+        value: pkceCookie?.value,
+        exists: !!pkceCookie
+      });
+
+      // Exchange code for session using the standard server client
+      console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to exchange code for session using @supabase/ssr client...');
       const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
       if (exchangeError) {
@@ -69,20 +37,10 @@ export async function GET(request: NextRequest) {
       
       console.log('DIAGNOSTIC (Supabase Auth Callback): Code exchange successful!');
 
-      if (!sessionData || !sessionData.user) {
-        console.error('DIAGNOSTIC (Supabase Auth Callback): No user data found in session after exchange.')
+      if (!sessionData || !sessionData.user || !sessionData.session) { // Check session object too
+        console.error('DIAGNOSTIC (Supabase Auth Callback): No user or session data found after exchange.')
         return NextResponse.redirect(`${origin}/auth/auth-code-error?message=Failed+to+retrieve+user+session`)
       }
-
-      // Create a server client to save the session cookies
-      const serverClient = createClient();
-      const response = NextResponse.redirect(`${origin}/dashboard`);
-      
-      // Set the session cookies
-      await serverClient.auth.setSession({
-        access_token: sessionData.session.access_token,
-        refresh_token: sessionData.session.refresh_token
-      });
 
       // --- Workspace Check & Redirect Logic --- 
       console.log('DIAGNOSTIC (Supabase Auth Callback): Session obtained. Checking workspace installation...')
@@ -148,9 +106,11 @@ export async function GET(request: NextRequest) {
       }
 
       // 3. Redirect based on workspace existence
+      // NOTE: The createClient() used above already handles setting the necessary cookies on the response.
+      // We just need to create the redirect response.
       if (workspaceExists) {
         console.log('DIAGNOSTIC (Supabase Auth Callback): Workspace exists. Redirecting to dashboard.')
-        return response;
+        return NextResponse.redirect(`${origin}/dashboard`)
       }
 
       // If workspace doesn't exist, redirect to landing page
