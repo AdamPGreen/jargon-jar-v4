@@ -28,14 +28,24 @@ export function createClient() {
           // Special handling for PKCE code verifier cookies - strip quotes if present
           if (name.includes('-auth-token-code-verifier')) {
             const value = cookie.value;
+            console.log(`DIAGNOSTIC (Supabase Client): Getting PKCE cookie ${name}`, { 
+              originalValue: value,
+              hasQuotes: value.startsWith('"') && value.endsWith('"')
+            });
             if (value.startsWith('"') && value.endsWith('"')) {
-              return value.slice(1, -1);
+              const unquoted = value.slice(1, -1);
+              console.log(`DIAGNOSTIC (Supabase Client): Unquoted PKCE cookie value from "${value.substring(0, 10)}..." to "${unquoted.substring(0, 10)}..."`);
+              return unquoted;
             }
           }
           
           return cookie.value;
         },
         set(name: string, value: string, options: CookieOptions) {
+          console.log(`DIAGNOSTIC (Supabase Client): Setting cookie ${name}`, { 
+            valueLength: value.length,
+            options 
+          });
           try {
             cookieStore.set({ name, value, ...options })
           } catch (error) {
@@ -45,6 +55,7 @@ export function createClient() {
           }
         },
         remove(name: string, options: CookieOptions) {
+          console.log(`DIAGNOSTIC (Supabase Client): Removing cookie ${name}`, { options });
           try {
             cookieStore.set({ name, value: '', ...options })
           } catch (error) {

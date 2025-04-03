@@ -19,6 +19,11 @@ export async function GET(request: NextRequest) {
     try {
       // Exchange code for session using the server client
       console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to exchange code for session...');
+      console.log('DIAGNOSTIC (Supabase Auth Callback): Code value:', code);
+      console.log('DIAGNOSTIC (Supabase Auth Callback): PKCE cookie value before exchange:', 
+        request.cookies.get(`sb-${process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.[1] || 'unknown-project-id'}-auth-token-code-verifier`)?.value
+      );
+      
       const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
       if (exchangeError) {
