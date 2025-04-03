@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -14,16 +13,23 @@ export async function GET(request: NextRequest) {
   console.log('DIAGNOSTIC (Supabase Auth Callback): Cookies received:', request.cookies.getAll());
 
   // --- START: Manual PKCE Cookie Unquoting --- 
+  let modifiedRequest = request;
   try {
     const supabaseProjectId = process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.[1] || 'unknown-project-id';
     const pkceCookieName = `sb-${supabaseProjectId}-auth-token-code-verifier`;
     const pkceCookie = request.cookies.get(pkceCookieName);
 
-    if (pkceCookie && pkceCookie.value?.startsWith('"') && pkceCookie.value?.endsWith('"')) {
+    if (pkceCookie?.value?.startsWith('"') && pkceCookie?.value?.endsWith('"')) {
       const unquotedValue = pkceCookie.value.slice(1, -1);
       console.log(`DIAGNOSTIC (Supabase Auth Callback): Manually unquoting PKCE cookie ${pkceCookieName}.`);
-      // Overwrite the cookie on the request object for the subsequent createClient call
-      request.cookies.set(pkceCookieName, unquotedValue);
+      // Create a new request with the unquoted cookie value
+      const newRequest = new NextRequest(request.url, {
+        headers: request.headers,
+        method: request.method,
+        body: request.body,
+      });
+      newRequest.cookies.set(pkceCookieName, unquotedValue);
+      modifiedRequest = newRequest;
     } else if (pkceCookie) {
       console.log(`DIAGNOSTIC (Supabase Auth Callback): PKCE cookie ${pkceCookieName} found but not quoted.`);
     } else {
