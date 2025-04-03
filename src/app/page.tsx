@@ -10,16 +10,28 @@ export default async function Home({
   const installRequired = searchParams.install_required === "true";
   const workspaceHint = searchParams.workspace_hint as string | undefined;
   
-  // Get Supabase auth URL - Rely on Supabase default redirect URI
+  // Determine Base URL reliably for server component
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'; // Fallback for local dev
+
+  console.log("DIAGNOSTIC (Landing Page): Determined Base URL:", baseUrl);
+  console.log("DIAGNOSTIC (Landing Page): NEXT_PUBLIC_BASE_URL value:", process.env.NEXT_PUBLIC_BASE_URL);
+  console.log("DIAGNOSTIC (Landing Page): VERCEL_URL value:", process.env.VERCEL_URL);
+
+  // Get Supabase auth URL
   const supabase = createClient();
-  let signInUrl = '/auth/callback'; // Default fallback in case of complete failure
+  let signInUrl = '/auth/callback'; // Default fallback
   try {
+    // Construct the redirect URL
+    const redirectUrl = `${baseUrl}/auth/callback`;
+    console.log("DIAGNOSTIC (Landing Page): Using redirect URL:", redirectUrl);
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'slack',
-      // No explicit redirectTo - let Supabase use its configured default
-      // options: {
-      //   redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
-      // }
+      options: {
+        redirectTo: redirectUrl, // Use the reliably determined URL
+      }
     });
 
     console.log("DIAGNOSTIC (Landing Page): Supabase signInWithOAuth response:", { data, error });
