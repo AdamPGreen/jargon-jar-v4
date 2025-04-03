@@ -10,38 +10,26 @@ export default async function Home({
   const installRequired = searchParams.install_required === "true";
   const workspaceHint = searchParams.workspace_hint as string | undefined;
   
-  // Define redirect URL - Hardcode for production, use localhost for dev
+  // Define the redirect URL based on the environment
   const redirectUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://jargon-jar-v4.vercel.app/auth/callback' // Hardcoded Production URL
-    : 'http://localhost:3000/auth/callback'; // Local development URL
+    ? 'https://jargon-jar-v4.vercel.app/auth/callback' // Production callback
+    : 'http://localhost:3000/auth/callback'; // Local development callback
 
-  console.log("DIAGNOSTIC (Landing Page): Using redirect URL:", redirectUrl);
-
-  // Get Supabase auth URL
+  // Get the Slack Sign-In URL from Supabase
   const supabase = createClient();
-  let signInUrl = '/auth/callback'; // Default fallback
-  try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'slack',
-      options: {
-        redirectTo: redirectUrl, // Use the determined URL
-      }
-    });
-
-    console.log("DIAGNOSTIC (Landing Page): Supabase signInWithOAuth response:", { data, error });
-
-    if (error) {
-      console.error("DIAGNOSTIC (Landing Page): Error getting Slack sign-in URL:", error);
-      // Keep the default fallback URL or maybe redirect to an error page
-    } else if (data?.url) {
-      signInUrl = data.url;
-    } else {
-      console.warn("DIAGNOSTIC (Landing Page): No URL returned from signInWithOAuth, using fallback.");
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'slack_oidc', // Correct OIDC provider key
+    options: {
+      redirectTo: redirectUrl, // Explicit redirect URL
     }
-  } catch (catchError) {
-    console.error("DIAGNOSTIC (Landing Page): Exception during signInWithOAuth call:", catchError);
-  }
+  });
 
+  // Handle potential errors or missing URL
+  if (error) {
+    console.error("Error getting Slack sign-in URL:", error);
+    // Optionally handle the error state in the UI, for now, button will link to fallback
+  }
+  const signInUrl = data?.url || '/'; // Fallback to home if URL is somehow missing
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -114,7 +102,7 @@ export default async function Home({
                 variant="outline"
                 className="bg-transparent border-[#f9b507] text-[#f9b507] hover:bg-[#f9b507]/10 rounded-lg px-6"
               >
-                <a href={signInUrl}>
+                <a href={signInUrl}> {/* Use the generated or fallback URL */}
                   Sign in with Slack
                 </a>
               </Button>
