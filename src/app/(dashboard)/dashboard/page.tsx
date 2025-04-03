@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 export default async function DashboardPage() {
   const supabase = createClient()
@@ -13,22 +14,29 @@ export default async function DashboardPage() {
   
   // Get the Slack ID either from the identity's id field or provider_id in identity_data
   const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
+  
+  // Create an admin client to bypass RLS
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
-  // Get user data using the Slack user ID
-  const { data: userData } = await supabase
+  // Get user data using the Slack user ID with admin client
+  const { data: userData } = await supabaseAdmin
     .from('users')
     .select('id, display_name, workspace_id')
     .eq('slack_id', slackUserId)
     .single()
 
   // Get user's charges stats
-  const { count: chargesReceivedCount } = await supabase
+  const { count: chargesReceivedCount } = await supabaseAdmin
     .from('charges')
     .select('*', { count: 'exact', head: true })
     .eq('charged_user_id', userData?.id)
 
   // Get charges made by user
-  const { count: chargesMadeCount } = await supabase
+  const { count: chargesMadeCount } = await supabaseAdmin
     .from('charges')
     .select('*', { count: 'exact', head: true })
     .eq('charging_user_id', userData?.id)

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -42,22 +43,34 @@ export default async function DashboardLayout({
     redirect('/?error=missing_slack_identity')
   }
   
-  // Debug: Try to get all users first to verify the user exists at all
-  const { data: allUsers } = await supabase
+  // Create an admin client to bypass RLS
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('DIAGNOSTIC (Dashboard Layout): SUPABASE_SERVICE_ROLE_KEY env var is missing!')
+    redirect('/?error=server_config_error');
+  }
+  
+  // Debug: Try to get all users first to verify the user exists at all (with admin client)
+  const { data: allUsers } = await supabaseAdmin
     .from('users')
     .select('id, slack_id, email')
     .limit(10)
     
-  console.log('DIAGNOSTIC (Dashboard Layout): All users:', allUsers)
+  console.log('DIAGNOSTIC (Dashboard Layout): All users (admin client):', allUsers)
   
-  // Get user data using the Slack user ID instead of the Supabase auth ID
-  const { data: userData, error: userError } = await supabase
+  // Get user data using the Slack user ID with admin client to bypass RLS
+  const { data: userData, error: userError } = await supabaseAdmin
     .from('users')
     .select('id, display_name, avatar_url, workspace_id')
     .eq('slack_id', slackUserId)
     .single()
   
-  console.log('DIAGNOSTIC (Dashboard Layout): User lookup result:', {
+  console.log('DIAGNOSTIC (Dashboard Layout): User lookup result (admin client):', {
     found: !!userData,
     error: userError ? {
       code: userError.code,
@@ -71,8 +84,8 @@ export default async function DashboardLayout({
     redirect('/?error=user_not_found')
   }
   
-  // Get workspace data
-  const { data: workspaceData, error: workspaceError } = await supabase
+  // Get workspace data using admin client
+  const { data: workspaceData, error: workspaceError } = await supabaseAdmin
     .from('workspaces')
     .select('id, name, domain')
     .eq('id', userData.workspace_id)
