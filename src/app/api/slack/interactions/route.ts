@@ -235,12 +235,7 @@ export async function POST(request: Request) {
 async function handleModalSubmission(payload: ViewSubmissionPayload) { // Use interface
   console.log('Handling modal submission for callback_id:', payload.view.callback_id)
 
-  if (payload.view.callback_id !== 'charge_modal') {
-    console.warn('Received submission for unexpected callback_id:', payload.view.callback_id)
-    return NextResponse.json({ error: 'Unexpected callback_id' }, { status: 400 })
-  }
-
-  // Ensure required env vars are present
+  // Get Supabase URLs ready for use in both branches
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!supabaseUrl || !supabaseServiceRoleKey) {
@@ -248,172 +243,303 @@ async function handleModalSubmission(payload: ViewSubmissionPayload) { // Use in
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
   }
 
-  try {
-    // --- 1. Parse metadata and state ---
-    console.log('Processing payload values:', JSON.stringify(payload.view.state.values, null, 2))
-    
-    const metadata = JSON.parse(payload.view.private_metadata || '{}')
-    const { channel_id: channelId } = metadata
-    
-    // Extract form values - adjust to match block_ids and action_ids in the updated modal
-    const userBlockId = 'user_block'
-    const userActionId = 'user_select'
-    const jargonBlockId = 'jargon_block'
-    const jargonActionId = 'jargon_select'
-    const amountBlockId = 'amount_block' // Updated to match our new structure
-    const amountActionId = 'charge_amount' // Updated to match our new structure
-    
-    console.log('Extracting from state:', JSON.stringify({
-      userBlock: payload.view.state.values[userBlockId],
-      jargonBlock: payload.view.state.values[jargonBlockId],
-      amountBlock: payload.view.state.values[amountBlockId]
-    }, null, 2))
-    
-    // Extract values safely
-    const chargedUserId = payload.view.state.values[userBlockId]?.[userActionId]?.selected_user
-    const jargonTermId = payload.view.state.values[jargonBlockId]?.[jargonActionId]?.selected_option?.value
-    const chargeAmountStr = payload.view.state.values[amountBlockId]?.[amountActionId]?.value
-    
-    if (!chargedUserId || !jargonTermId || !chargeAmountStr) {
-      console.error('Missing required fields:', { chargedUserId, jargonTermId, chargeAmountStr })
-      return NextResponse.json({
-        response_action: 'errors',
-        errors: {
-          ...(chargedUserId ? {} : { [userBlockId]: 'Please select a user' }),
-          ...(jargonTermId ? {} : { [jargonBlockId]: 'Please select a jargon term' }),
-          ...(chargeAmountStr ? {} : { [amountBlockId]: 'Please enter an amount' })
-        }
-      })
-    }
-    
-    const chargeAmount = Number.parseFloat(chargeAmountStr)
-    if (Number.isNaN(chargeAmount) || chargeAmount <= 0) {
-      console.error('Invalid charge amount:', chargeAmountStr)
-      return NextResponse.json({
-        response_action: 'errors',
-        errors: {
-          [amountBlockId]: 'Please enter a valid positive amount'
-        }
-      })
-    }
-    
-    // --- 2. Get workspace information ---
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: { persistSession: false }
-    })
-    
-    const workspaceId = payload.team.id
-    const chargingUserId = payload.user.id
-    
-    const { data: workspace, error: workspaceError } = await supabaseAdmin
-      .from('workspaces')
-      .select('id, bot_token')
-      .eq('slack_id', workspaceId)
-      .single()
-    
-    if (workspaceError || !workspace || !workspace.bot_token) {
-      console.error('Error fetching workspace:', workspaceError)
-      return NextResponse.json({ error: 'Workspace not found' }, { status: 500 })
-    }
-    
-    // --- 3. Fetch Workspace/Bot Token ---
-    const botToken = workspace.bot_token
-    const workspaceIdDB = workspace.id // DB UUID
-    const slackWebClient = new WebClient(botToken)
+  // Create Supabase admin client for both branches
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: { persistSession: false }
+  })
 
-    // --- 4. Fetch User DB IDs ---
-    // Fetch the internal DB UUIDs for the users based on their Slack IDs
-    const fetchUserDbId = async (slackId: string): Promise<string | null> => {
-        const { data: userData, error: userError } = await supabaseAdmin
-            .from('users')
-            .select('id')
-            .eq('slack_id', slackId)
-            .eq('workspace_id', workspaceIdDB) // Ensure user belongs to the correct workspace
-            .single();
-        if (userError) {
-            console.error(`Error fetching user DB ID for Slack ID ${slackId} in workspace ${workspaceIdDB}:`, userError);
-            return null;
-        }
-        return userData?.id ?? null;
-    };
-
-    const [chargedDbUserId, chargingDbUserId] = await Promise.all([
-        fetchUserDbId(chargedUserId),
-        fetchUserDbId(chargingUserId)
-    ]);
-
-    if (!chargedDbUserId || !chargingDbUserId) {
-        console.error('Could not find database entries for one or both users:', { chargedUserId, chargingUserId, chargedDbUserId, chargingDbUserId });
-        return NextResponse.json({ error: 'Could not identify users involved in the charge.' }, { status: 400 });
-    }
-
-    // --- 5. Create Charge Record in Supabase ---
-    // For manual charges, use the current timestamp as message_ts
-    const currentTimestamp = Math.floor(Date.now() / 1000).toString();
-    
-    const { data: chargeData, error: insertError } = await supabaseAdmin
-      .from('charges')
-      .insert({
-        charged_user_id: chargedDbUserId, // DB UUID
-        charging_user_id: chargingDbUserId, // DB UUID
-        jargon_term_id: jargonTermId, // DB UUID
-        amount: chargeAmount,
-        channel_id: channelId, // Slack Channel ID
-        workspace_id: workspaceIdDB, // DB UUID
-        is_automatic: false,
-        message_text: '', // No message text for manual charges
-        message_ts: currentTimestamp // Use current timestamp as message_ts
-      })
-      .select('id')
-      .single();
-
-    if (insertError) {
-      console.error('Error creating charge record:', insertError);
-      return NextResponse.json({ error: 'Failed to record charge' }, { status: 500 });
-    }
-
-    console.log('Charge successfully recorded with ID:', chargeData?.id);
-
-    // --- 6. Post Confirmation Message to Slack ---
+  // Handle Add Jargon modal submission
+  if (payload.view.callback_id === 'add_jargon_modal') {
     try {
-      // Fetch Jargon term text
-      const { data: termData, error: termFetchError } = await supabaseAdmin
+      console.log('Processing Add Jargon modal submission')
+      
+      // Parse metadata
+      const metadata = JSON.parse(payload.view.private_metadata || '{}')
+      const { workspace_id: workspaceDbId, channel_id: channelId, original_view_id: originalViewId } = metadata
+      
+      if (!workspaceDbId || !channelId) {
+        console.error('Missing required metadata:', { workspaceDbId, channelId })
+        return NextResponse.json({
+          response_action: 'errors',
+          errors: {
+            term_block: 'Something went wrong. Please try again.'
+          }
+        })
+      }
+      
+      // Extract form values
+      const termBlockId = 'term_block'
+      const termActionId = 'term_input'
+      const descriptionBlockId = 'description_block'
+      const descriptionActionId = 'description_input'
+      const costBlockId = 'cost_block'
+      const costActionId = 'cost_input'
+      
+      const term = payload.view.state.values[termBlockId]?.[termActionId]?.value
+      const description = payload.view.state.values[descriptionBlockId]?.[descriptionActionId]?.value
+      const costStr = payload.view.state.values[costBlockId]?.[costActionId]?.value
+      
+      // Validate inputs
+      if (!term) {
+        return NextResponse.json({
+          response_action: 'errors',
+          errors: {
+            [termBlockId]: 'Please enter a jargon term'
+          }
+        })
+      }
+      
+      const defaultCost = Number.parseFloat(costStr || '1.00')
+      if (Number.isNaN(defaultCost) || defaultCost <= 0) {
+        return NextResponse.json({
+          response_action: 'errors',
+          errors: {
+            [costBlockId]: 'Please enter a valid positive amount'
+          }
+        })
+      }
+      
+      // Get the user who's adding the term
+      const createdBySlackId = payload.user.id
+      
+      // Get user's DB ID
+      const { data: userData, error: userError } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('slack_id', createdBySlackId)
+        .eq('workspace_id', workspaceDbId)
+        .single()
+      
+      if (userError) {
+        console.error('Error fetching user:', userError)
+        return NextResponse.json({ error: 'Failed to identify user' }, { status: 500 })
+      }
+      
+      const createdById = userData?.id
+      
+      // Create the new jargon term
+      const { data: jargonData, error: jargonError } = await supabaseAdmin
         .from('jargon_terms')
-        .select('term')
-        .eq('id', jargonTermId)
-        .single();
+        .insert({
+          term,
+          description: description || null,
+          default_cost: defaultCost,
+          created_by: createdById,
+          workspace_id: workspaceDbId
+        })
+        .select('id, term')
+        .single()
+      
+      if (jargonError) {
+        console.error('Error creating jargon term:', jargonError)
+        return NextResponse.json({ error: 'Failed to create jargon term' }, { status: 500 })
+      }
+      
+      // Fetch workspace bot token to send confirmation
+      const { data: workspace, error: workspaceError } = await supabaseAdmin
+        .from('workspaces')
+        .select('bot_token, slack_id')
+        .eq('id', workspaceDbId)
+        .single()
+      
+      if (workspaceError || !workspace?.bot_token) {
+        console.error('Error fetching workspace:', workspaceError)
+        // Continue anyway since term was created
+      }
+      
+      if (workspace?.bot_token) {
+        // Send a confirmation message
+        const slackClient = new WebClient(workspace.bot_token)
+        
+        try {
+          await slackClient.chat.postMessage({
+            channel: channelId,
+            text: `:tada: <@${createdBySlackId}> just added a new jargon term: *${term}* (Default cost: $${defaultCost.toFixed(2)})`
+          })
+          console.log('Confirmation message sent for new jargon')
+        } catch (slackError) {
+          console.error('Error sending confirmation message:', slackError)
+          // Continue anyway
+        }
+      }
+      
+      console.log('Successfully added new jargon term:', jargonData?.term)
+      
+      // Return confirmation to close the modal
+      return NextResponse.json({})
+    } catch (error) {
+      console.error('Error handling Add Jargon modal submission:', error)
+      return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 })
+    }
+  }
+  
+  // Handle Charge modal submission - existing code
+  if (payload.view.callback_id === 'charge_modal') {
+    try {
+      // --- 1. Parse metadata and state ---
+      console.log('Processing payload values:', JSON.stringify(payload.view.state.values, null, 2))
+      
+      const metadata = JSON.parse(payload.view.private_metadata || '{}')
+      const { channel_id: channelId } = metadata
+      
+      // Extract form values - adjust to match block_ids and action_ids in the updated modal
+      const userBlockId = 'user_block'
+      const userActionId = 'user_select'
+      const jargonBlockId = 'jargon_block'
+      const jargonActionId = 'jargon_select'
+      const amountBlockId = 'amount_block' // Updated to match our new structure
+      const amountActionId = 'charge_amount' // Updated to match our new structure
+      
+      console.log('Extracting from state:', JSON.stringify({
+        userBlock: payload.view.state.values[userBlockId],
+        jargonBlock: payload.view.state.values[jargonBlockId],
+        amountBlock: payload.view.state.values[amountBlockId]
+      }, null, 2))
+      
+      // Extract values safely
+      const chargedUserId = payload.view.state.values[userBlockId]?.[userActionId]?.selected_user
+      const jargonTermId = payload.view.state.values[jargonBlockId]?.[jargonActionId]?.selected_option?.value
+      const chargeAmountStr = payload.view.state.values[amountBlockId]?.[amountActionId]?.value
+      
+      if (!chargedUserId || !jargonTermId || !chargeAmountStr) {
+        console.error('Missing required fields:', { chargedUserId, jargonTermId, chargeAmountStr })
+        return NextResponse.json({
+          response_action: 'errors',
+          errors: {
+            ...(chargedUserId ? {} : { [userBlockId]: 'Please select a user' }),
+            ...(jargonTermId ? {} : { [jargonBlockId]: 'Please select a jargon term' }),
+            ...(chargeAmountStr ? {} : { [amountBlockId]: 'Please enter an amount' })
+          }
+        })
+      }
+      
+      const chargeAmount = Number.parseFloat(chargeAmountStr)
+      if (Number.isNaN(chargeAmount) || chargeAmount <= 0) {
+        console.error('Invalid charge amount:', chargeAmountStr)
+        return NextResponse.json({
+          response_action: 'errors',
+          errors: {
+            [amountBlockId]: 'Please enter a valid positive amount'
+          }
+        })
+      }
+      
+      // --- 2. Get workspace information ---
+      const workspaceId = payload.team.id
+      const chargingUserId = payload.user.id
+      
+      const { data: workspace, error: workspaceError } = await supabaseAdmin
+        .from('workspaces')
+        .select('id, bot_token')
+        .eq('slack_id', workspaceId)
+        .single()
+      
+      if (workspaceError || !workspace || !workspace.bot_token) {
+        console.error('Error fetching workspace:', workspaceError)
+        return NextResponse.json({ error: 'Workspace not found' }, { status: 500 })
+      }
+      
+      // --- 3. Fetch Workspace/Bot Token ---
+      const botToken = workspace.bot_token
+      const workspaceIdDB = workspace.id // DB UUID
+      const slackWebClient = new WebClient(botToken)
 
-      if (termFetchError || !termData) {
-        console.error('Error fetching jargon term text:', termFetchError);
-        // Continue anyway, just use the ID in the message
+      // --- 4. Fetch User DB IDs ---
+      // Fetch the internal DB UUIDs for the users based on their Slack IDs
+      const fetchUserDbId = async (slackId: string): Promise<string | null> => {
+          const { data: userData, error: userError } = await supabaseAdmin
+              .from('users')
+              .select('id')
+              .eq('slack_id', slackId)
+              .eq('workspace_id', workspaceIdDB) // Ensure user belongs to the correct workspace
+              .single();
+          if (userError) {
+              console.error(`Error fetching user DB ID for Slack ID ${slackId} in workspace ${workspaceIdDB}:`, userError);
+              return null;
+          }
+          return userData?.id ?? null;
+      };
+
+      const [chargedDbUserId, chargingDbUserId] = await Promise.all([
+          fetchUserDbId(chargedUserId),
+          fetchUserDbId(chargingUserId)
+      ]);
+
+      if (!chargedDbUserId || !chargingDbUserId) {
+          console.error('Could not find database entries for one or both users:', { chargedUserId, chargingUserId, chargedDbUserId, chargingDbUserId });
+          return NextResponse.json({ error: 'Could not identify users involved in the charge.' }, { status: 400 });
       }
 
-      const jargonText = termData?.term || 'unknown jargon';
-
-      // Create a simple confirmation message
-      let confirmationText = `:dollar: <@${chargingUserId}> just charged <@${chargedUserId}> $${chargeAmount.toFixed(2)} for using "${jargonText}"!`;
+      // --- 5. Create Charge Record in Supabase ---
+      // For manual charges, use the current timestamp as message_ts
+      const currentTimestamp = Math.floor(Date.now() / 1000).toString();
       
-      // Add a closing line
-      confirmationText += "\n:money_with_wings: Add it to the jar!";
+      const { data: chargeData, error: insertError } = await supabaseAdmin
+        .from('charges')
+        .insert({
+          charged_user_id: chargedDbUserId, // DB UUID
+          charging_user_id: chargingDbUserId, // DB UUID
+          jargon_term_id: jargonTermId, // DB UUID
+          amount: chargeAmount,
+          channel_id: channelId, // Slack Channel ID
+          workspace_id: workspaceIdDB, // DB UUID
+          is_automatic: false,
+          message_text: '', // No message text for manual charges
+          message_ts: currentTimestamp // Use current timestamp as message_ts
+        })
+        .select('id')
+        .single();
 
-      await slackWebClient.chat.postMessage({
-        channel: channelId,
-        text: confirmationText,
-      })
-      console.log(`Confirmation message sent to channel ${channelId}`)
-    } catch (slackError) {
-      console.error('Error sending Slack confirmation message:', slackError)
-      // Log error but don't fail the interaction if DB insert succeeded
+      if (insertError) {
+        console.error('Error creating charge record:', insertError);
+        return NextResponse.json({ error: 'Failed to record charge' }, { status: 500 });
+      }
+
+      console.log('Charge successfully recorded with ID:', chargeData?.id);
+
+      // --- 6. Post Confirmation Message to Slack ---
+      try {
+        // Fetch Jargon term text
+        const { data: termData, error: termFetchError } = await supabaseAdmin
+          .from('jargon_terms')
+          .select('term')
+          .eq('id', jargonTermId)
+          .single();
+
+        if (termFetchError || !termData) {
+          console.error('Error fetching jargon term text:', termFetchError);
+          // Continue anyway, just use the ID in the message
+        }
+
+        const jargonText = termData?.term || 'unknown jargon';
+
+        // Create a simple confirmation message
+        let confirmationText = `:dollar: <@${chargingUserId}> just charged <@${chargedUserId}> $${chargeAmount.toFixed(2)} for using "${jargonText}"!`;
+        
+        // Add a closing line
+        confirmationText += "\n:money_with_wings: Add it to the jar!";
+
+        await slackWebClient.chat.postMessage({
+          channel: channelId,
+          text: confirmationText,
+        })
+        console.log(`Confirmation message sent to channel ${channelId}`)
+      } catch (slackError) {
+        console.error('Error sending Slack confirmation message:', slackError)
+        // Log error but don't fail the interaction if DB insert succeeded
+      }
+
+      // --- 7. Acknowledge the interaction ---
+      // Return empty 200 OK to close the modal and confirm receipt
+      return NextResponse.json({})
+
+    } catch (error) {
+      console.error('Unhandled error in handleModalSubmission:', error)
+      return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 })
     }
-
-    // --- 7. Acknowledge the interaction ---
-    // Return empty 200 OK to close the modal and confirm receipt
-    return NextResponse.json({})
-
-  } catch (error) {
-    console.error('Unhandled error in handleModalSubmission:', error)
-    return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 })
   }
+
+  return NextResponse.json({})
 }
 
 async function handleBlockActions(payload: BlockActionsPayload) {
@@ -623,111 +749,148 @@ async function handleBlockActions(payload: BlockActionsPayload) {
       }
     }
 
+    // Handle "Add New Jargon" button click
     if (action.action_id === 'add_new_jargon') {
-      // Open new modal for jargon creation
-      const newJargonModal = {
-        type: 'modal',
-        callback_id: 'new_jargon_modal',
+      console.log('Add New Jargon button clicked')
+      
+      // Get the trigger ID from the payload
+      const triggerId = payload.trigger_id
+      if (!triggerId) {
+        console.error('No trigger ID found in payload')
+        return NextResponse.json({ error: 'Missing trigger ID' }, { status: 400 })
+      }
+      
+      // Parse metadata to get workspace_id
+      const metadata = JSON.parse(payload.view.private_metadata || '{}')
+      const workspaceId = payload.team.id || metadata.workspace_id
+      const channelId = metadata.channel_id
+      
+      if (!workspaceId) {
+        console.error('No workspace ID found in payload or metadata')
+        return NextResponse.json({ error: 'Missing workspace ID' }, { status: 400 })
+      }
+      
+      // Fetch the bot token for the workspace
+      const supabaseServiceRole = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+      )
+      
+      const { data: workspace, error: workspaceError } = await supabaseServiceRole
+        .from('workspaces')
+        .select('id, bot_token')
+        .eq('slack_id', workspaceId)
+        .single()
+        
+      if (workspaceError || !workspace?.bot_token) {
+        console.error('Error fetching workspace token:', workspaceError)
+        return NextResponse.json({ error: 'Failed to fetch workspace token' }, { status: 500 })
+      }
+      
+      // Create a Slack client with the bot token
+      const slackClient = new WebClient(workspace.bot_token)
+      
+      // Define the Add Jargon modal view
+      const addJargonModalView = {
+        type: 'modal' as const,
+        callback_id: 'add_jargon_modal',
         title: {
-          type: 'plain_text',
-          text: 'Add New Jargon',
+          type: 'plain_text' as const,
+          text: 'Add New Jargon Term',
           emoji: true
         },
         submit: {
-          type: 'plain_text',
-          text: 'Create & Charge',
+          type: 'plain_text' as const,
+          text: 'Add Term',
           emoji: true
         },
         close: {
-          type: 'plain_text',
+          type: 'plain_text' as const,
           text: 'Cancel',
           emoji: true
         },
         blocks: [
           {
-            type: 'input',
-            block_id: 'user_block',
-            element: {
-              type: 'users_select',
-              action_id: 'user_select',
-              placeholder: {
-                type: 'plain_text',
-                text: 'Select a user',
-                emoji: true
-              }
-            },
-            label: {
-              type: 'plain_text',
-              text: 'Who used jargon?',
-              emoji: true
-            }
-          },
-          {
-            type: 'input',
+            type: 'input' as const,
             block_id: 'term_block',
             element: {
-              type: 'plain_text_input',
+              type: 'plain_text_input' as const,
               action_id: 'term_input',
               placeholder: {
-                type: 'plain_text',
-                text: 'Enter the jargon term',
+                type: 'plain_text' as const,
+                text: 'e.g., Circle Back, Low-Hanging Fruit',
                 emoji: true
               }
             },
             label: {
-              type: 'plain_text',
-              text: 'New Jargon Term',
+              type: 'plain_text' as const,
+              text: 'Jargon Term',
               emoji: true
             }
           },
           {
-            type: 'input',
+            type: 'input' as const,
             block_id: 'description_block',
             element: {
-              type: 'plain_text_input',
+              type: 'plain_text_input' as const,
               action_id: 'description_input',
               multiline: true,
               placeholder: {
-                type: 'plain_text',
-                text: 'Enter a description of this term',
+                type: 'plain_text' as const,
+                text: 'What does this jargon term mean?',
                 emoji: true
               }
             },
             label: {
-              type: 'plain_text',
+              type: 'plain_text' as const,
               text: 'Description',
               emoji: true
             }
           },
           {
-            type: 'input',
-            block_id: 'amount_block',
+            type: 'input' as const,
+            block_id: 'cost_block',
             element: {
-              type: 'plain_text_input',
-              action_id: 'amount_input',
+              type: 'plain_text_input' as const,
+              action_id: 'cost_input',
               placeholder: {
-                type: 'plain_text',
-                text: 'Enter charge amount',
+                type: 'plain_text' as const,
+                text: 'Default amount to charge',
                 emoji: true
-              }
+              },
+              initial_value: '1.00'
             },
             label: {
-              type: 'plain_text',
-              text: 'Charge amount ($)',
+              type: 'plain_text' as const,
+              text: 'Default Cost ($)',
               emoji: true
             }
           }
         ],
-        private_metadata: payload.view.private_metadata // Preserve metadata from original modal
+        private_metadata: JSON.stringify({
+          channel_id: channelId,
+          workspace_id: workspace.id,
+          original_view_id: payload.view.id
+        })
       }
-
-      return new Response(JSON.stringify({
-        response_action: 'push',
-        view: newJargonModal
-      }))
+      
+      try {
+        // Push the new modal view
+        console.log('Pushing Add Jargon modal')
+        const result = await slackClient.views.push({
+          trigger_id: triggerId,
+          view: addJargonModalView
+        })
+        
+        console.log('Add Jargon modal pushed successfully')
+        return NextResponse.json({})
+      } catch (error) {
+        console.error('Error pushing Add Jargon modal:', error)
+        return NextResponse.json({ error: 'Failed to push Add Jargon modal' }, { status: 500 })
+      }
     }
 
-    return new Response(JSON.stringify({}))
+    return NextResponse.json({})
   } catch (error) {
     console.error('Error handling block actions:', error)
     return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
