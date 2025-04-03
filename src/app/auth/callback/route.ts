@@ -10,16 +10,22 @@ export async function GET(request: NextRequest) {
 
   console.log('DIAGNOSTIC (Supabase Auth Callback): Received callback request', { code })
 
+  // Log all received cookies
+  console.log('DIAGNOSTIC (Supabase Auth Callback): Cookies received:', request.cookies.getAll());
+
   if (code) {
     const supabase = createClient()
     try {
       // Exchange code for session using the server client
+      console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to exchange code for session...');
       const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
       if (exchangeError) {
         console.error('DIAGNOSTIC (Supabase Auth Callback): Error exchanging code for session:', exchangeError)
         return NextResponse.redirect(`${origin}/auth/auth-code-error?message=${encodeURIComponent(exchangeError.message)}`)
       }
+      
+      console.log('DIAGNOSTIC (Supabase Auth Callback): Code exchange successful!');
 
       if (!sessionData || !sessionData.user) {
         console.error('DIAGNOSTIC (Supabase Auth Callback): No user data found in session after exchange.')
