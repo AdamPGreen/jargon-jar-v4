@@ -19,11 +19,32 @@ export default async function DashboardLayout({
     redirect('/')
   }
   
-  // Get user data
+  // Extract Slack user ID from identities (added for OIDC flow)
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Find the slack_oidc identity to get the actual Slack user ID
+  const slackIdentity = user?.identities?.find(id => id.provider === 'slack_oidc')
+  const slackIdentityData = slackIdentity?.identity_data as { provider_id?: string } | undefined
+  
+  // Get the Slack ID either from the identity's id field or provider_id in identity_data
+  const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
+  
+  console.log('DIAGNOSTIC (Dashboard Layout): Auth user details', {
+    authUserId: session.user.id,
+    hasSlackIdentity: !!slackIdentity,
+    slackUserId
+  })
+  
+  if (!slackUserId) {
+    console.error('Could not find Slack user ID in auth identities')
+    redirect('/?error=missing_slack_identity')
+  }
+  
+  // Get user data using the Slack user ID instead of the Supabase auth ID
   const { data: userData, error: userError } = await supabase
     .from('users')
     .select('id, display_name, avatar_url, workspace_id')
-    .eq('slack_id', session.user.id)
+    .eq('slack_id', slackUserId)
     .single()
   
   if (userError || !userData) {
