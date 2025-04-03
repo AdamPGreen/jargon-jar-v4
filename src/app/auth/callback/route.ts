@@ -14,44 +14,11 @@ export async function GET(request: NextRequest) {
   // Log all received cookies
   console.log('DIAGNOSTIC (Supabase Auth Callback): Cookies received:', request.cookies.getAll());
 
-  // --- START: Manual PKCE Cookie Unquoting --- 
-  let unquotedPkceValue: string | undefined;
-  try {
-    const supabaseProjectId = process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.[1] || 'unknown-project-id';
-    const pkceCookieName = `sb-${supabaseProjectId}-auth-token-code-verifier`;
-    const pkceCookie = request.cookies.get(pkceCookieName);
-
-    if (pkceCookie?.value?.startsWith('"') && pkceCookie?.value?.endsWith('"')) {
-      unquotedPkceValue = pkceCookie.value.slice(1, -1);
-      console.log(`DIAGNOSTIC (Supabase Auth Callback): Manually unquoting PKCE cookie ${pkceCookieName}.`);
-    } else if (pkceCookie) {
-      console.log(`DIAGNOSTIC (Supabase Auth Callback): PKCE cookie ${pkceCookieName} found but not quoted.`);
-      unquotedPkceValue = pkceCookie.value;
-    } else {
-      console.log(`DIAGNOSTIC (Supabase Auth Callback): PKCE cookie ${pkceCookieName} not found.`);
-    }
-  } catch (e) {
-    console.error('DIAGNOSTIC (Supabase Auth Callback): Error during manual PKCE unquoting:', e);
-    // Proceed anyway, maybe it wasn't needed or the error is minor
-  }
-  // --- END: Manual PKCE Cookie Unquoting --- 
-
   if (code) {
-    // Create a custom cookie store that returns the unquoted value for the PKCE cookie
-    const cookieStore = cookies();
-    const originalGet = cookieStore.get;
-    cookieStore.get = (name: string) => {
-      const cookie = originalGet.call(cookieStore, name);
-      if (cookie && name.includes('-auth-token-code-verifier') && unquotedPkceValue) {
-        return { ...cookie, value: unquotedPkceValue };
-      }
-      return cookie;
-    };
-
     const supabase = createClient()
     try {
       // Exchange code for session using the server client
-      console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to exchange code for session using potentially modified cookie...');
+      console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to exchange code for session...');
       const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
       if (exchangeError) {

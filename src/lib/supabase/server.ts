@@ -22,7 +22,18 @@ export function createClient() {
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value
+          const cookie = cookieStore.get(name);
+          if (!cookie) return undefined;
+
+          // Special handling for PKCE code verifier cookies - strip quotes if present
+          if (name.includes('-auth-token-code-verifier')) {
+            const value = cookie.value;
+            if (value.startsWith('"') && value.endsWith('"')) {
+              return value.slice(1, -1);
+            }
+          }
+          
+          return cookie.value;
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
