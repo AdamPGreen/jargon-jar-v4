@@ -49,10 +49,10 @@
 ## Phase 3: Slack Integration (Week 5-6)
 
 ### Slash Command Handling
-- [ ] Implement `/charge` command
-- [ ] Build charge modal UI
-- [ ] Create jargon selection interface
-- [ ] Implement user selection
+- [x] Implement `/charge` command
+- [x] Build charge modal UI
+- [x] Create jargon selection interface
+- [x] Implement user selection
 - [ ] Add charge confirmation
 
 ### Jargon Detection
@@ -63,8 +63,8 @@
 - [ ] Implement channel monitoring settings
 
 ### Interactive Components
-- [ ] Build modal interaction handlers
-- [ ] Create jargon term addition flow
+- [x] Build modal interaction handlers
+- [x] Create jargon term addition flow
 - [ ] Implement charge confirmation flow
 - [ ] Set up message action buttons
 - [ ] Add help command responses
@@ -252,28 +252,44 @@
   - Set up `/api/slack/interactions/route.ts`
   - Added basic modal submission handling
   - Implemented request verification
+- Enhanced Slack modal UX:
+  - Implemented dynamic field updates based on jargon selection
+  - Added "Add New Jargon" button with plus sign emoji
+  - Optimized metadata size to stay within Slack's limits
+  - Fixed type errors and linter issues
+  - Added debug logging for troubleshooting
+- Improved Slack modal interactivity:
+  - Added dynamic jargon description display when term is selected
+  - Implemented pre-populated charge amount based on jargon term default cost
+  - Used views.update API to dynamically update the modal
+  - Preserved user selections during modal updates
+  - Fixed interaction flow for better user experience
 
 ### Technical Details
 - Using Slack's Block Kit for modal UI
 - Implemented proper request verification using Slack's signing secret
 - Added diagnostic logging for debugging
 - Configured proper CORS headers in `next.config.js`
+- Optimized modal metadata to stay under Slack's 3001 character limit
+- Fixed button styling issues in modal views
+- Implemented dispatch_action to trigger immediate updates on selection changes
 
 ### Next Steps
-- Implement charge creation logic in the interactions handler
-- Add user selection to the modal
-- Create jargon term selection interface
-- Implement charge confirmation flow
-- Add error handling and user feedback
+- Complete the charge creation logic in the database after form submission
+- Create comprehensive error handling for the charge creation process
+- Add confirmation messages in the Slack channel
+- Implement analytics tracking for charges
+- Add support for charge history and reporting
 
 ### Next Session Prompt
-"Now that we have the `/charge` command and modal working, let's implement the charge creation logic. We need to:
-1. Add user selection to the modal
-2. Create a jargon term selection interface
-3. Implement the charge creation in the database
-4. Add confirmation messages back to the Slack channel
+"Now that we have the Slack modal interactions working correctly with dynamic updates, let's implement automated jargon detection in channels. We need to:
+1. Set up Slack event subscriptions for message events
+2. Create a handler to process incoming messages
+3. Implement jargon detection logic
+4. Add automatic charge creation for detected jargon
+5. Send notification messages to the channel
 
-Can you help me with that?"
+Can you help me implement this feature?"
 
 ## Debugging OAuth & Commands (Week 5 Cont.)
 
@@ -293,3 +309,48 @@ Can you help me with that?"
 ### Next Steps
 - Implement charge creation logic in the interactions handler (`/api/slack/interactions`).
 - Add confirmation message posting to Slack channel after charge creation.
+
+## Implementing Modal Interactions (Week 6)
+
+### Completed
+- **Fixed Modal JSON Display Issue:**
+  - Identified and fixed issue where the modal JSON payload was being displayed in the Slack channel
+  - Modified the command handler to return an empty 200 OK response after initiating the `views.open` API call
+  - Ensured clean user experience with no technical details leaking to users
+- **Implemented "Add New Jargon" Button Functionality:**
+  - Added handler for the `add_new_jargon` action in the `handleBlockActions` function
+  - Created a new modal for adding jargon terms with fields for term, description, and default cost
+  - Used `views.push` API to display this modal on top of the existing charge modal
+  - Implemented submission handler in `handleModalSubmission` to process `add_jargon_modal` form data
+  - Added validation for required fields and appropriate error messages
+  - Implemented database operations to save new jargon terms to the workspace's collection
+  - Added confirmation messages posted to the channel when a new term is added
+  - Fixed TypeScript type issues with proper type assertions for Slack API objects
+- **Completed Charge Creation Flow:**
+  - Implemented full end-to-end workflow from slash command to charge confirmation
+  - Added proper error handling and validation throughout the process
+  - Optimized database operations with appropriate error handling
+
+### Technical Details
+- Utilized Slack's `views.push` API for stacking modals
+- Implemented proper metadata passing between modal views
+- Used type assertions (`as const`) to satisfy TypeScript's strict type requirements for Slack API objects
+- Optimized error handling with specific error messages for different failure cases
+- Added comprehensive logging for debugging and monitoring
+
+### Next Steps
+- Implement unified `/jargon` command structure with subcommands
+- Create handlers for different subcommands like `/jargon charge`, `/jargon add-term`, and `/jargon help`
+- Update Slack app configuration for the new command structure
+- Implement automated jargon detection in channels
+
+### Next Session Prompt
+"Let's implement a unified slash command structure for Jargon Jar. We need to:
+
+1. Create a new `/jargon` command handler that can parse and route subcommands
+2. Move the existing `/charge` functionality to work as `/jargon charge`
+3. Implement direct term adding with `/jargon add-term`  
+4. Add a `/jargon help` command that displays available options
+5. Update our Slack app configuration to use the new command structure
+
+This will require modifying the existing command handler, creating helper functions for the different subcommands, and updating the Slack app settings. Can you help me implement this new command structure?"

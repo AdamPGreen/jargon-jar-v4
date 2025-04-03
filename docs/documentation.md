@@ -297,3 +297,73 @@ This document compiles essential documentation links for building the Jargon Jar
 - `GET /api/users/me` - Get current user
 - `GET /api/users/:id` - Get user details
 - `GET /api/users/leaderboard` - Get jargon usage leaderboard
+
+## Slack Integration Progress (Week 5)
+
+### Completed
+- Successfully configured Slack App settings:
+  - Set up OAuth scopes for bot token
+  - Configured slash command `/charge` endpoint
+  - Enabled interactive components
+  - Set up proper environment variables
+- Implemented slash command handler:
+  - Created `/api/slack/commands/route.ts`
+  - Added request verification
+  - Implemented modal opening functionality
+- Created interactions handler:
+  - Set up `/api/slack/interactions/route.ts`
+  - Added basic modal submission handling
+  - Implemented request verification
+- Enhanced Slack modal UX:
+  - Implemented dynamic field updates based on jargon selection
+  - Added "Add New Jargon" button with plus sign emoji
+  - Optimized metadata size to stay within Slack's limits
+  - Fixed type errors and linter issues
+  - Added debug logging for troubleshooting
+
+### Technical Details
+- Using Slack's Block Kit for modal UI
+- Implemented proper request verification using Slack's signing secret
+- Added diagnostic logging for debugging
+- Configured proper CORS headers in `next.config.js`
+- Optimized modal metadata to stay under Slack's 3001 character limit
+- Fixed button styling issues in modal views
+- Implemented dispatch_action to trigger immediate updates on selection changes
+- Used `views.push` API for modal stacking when adding new jargon terms
+
+### Next Steps
+- Implement unified `/jargon` command structure with subcommands
+- Create handlers for different subcommands (`charge`, `add-term`, `help`)
+- Update Slack app configuration for the new command structure
+- Implement automated jargon detection in channels
+- Add error handling and user feedback for edge cases
+
+### Progress Update (Week 6)
+- **Fixed Modal JSON Display Issue:**
+  - Resolved issue where modal JSON payload was displaying in Slack channels
+  - Modified command handler to return empty 200 OK response after API calls
+  - Ensured clean user experience with no technical details visible to users
+
+- **Implemented "Add New Jargon" Button:**
+  - Created workflow for adding new jargon terms directly from the charge modal
+  - Built stacked modal interface using Slack's `views.push` API
+  - Added form validation and error handling for jargon term submission
+  - Implemented database operations to save new terms to workspace collections
+  - Added confirmation messages posted to the channel when terms are added
+
+- **Completed Charge Creation Flow:**
+  - Implemented full workflow from slash command to confirmation message
+  - Added proper error handling and validation throughout the process
+  - Created database records for charges with all required metadata
+  - Added descriptive confirmation messages in Slack channels
+
+### Next Session Prompt
+"Let's implement a unified slash command structure for Jargon Jar. We need to:
+
+1. Create a new `/jargon` command handler that can parse and route subcommands
+2. Move the existing `/charge` functionality to work as `/jargon charge`
+3. Implement direct term adding with `/jargon add-term`  
+4. Add a `/jargon help` command that displays available options
+5. Update our Slack app configuration to use the new command structure
+
+This will require modifying the existing command handler, creating helper functions for the different subcommands, and updating the Slack app settings. Can you help me implement this new command structure?"
