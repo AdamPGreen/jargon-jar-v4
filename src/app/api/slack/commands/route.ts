@@ -164,7 +164,9 @@ export async function POST(req: Request) {
       throw new Error(`Failed to open modal: ${result.error}`)
     }
 
-    return new Response(JSON.stringify(result))
+    // Return an empty 200 OK response instead of the full result JSON
+    // This prevents Slack from displaying the JSON in the channel
+    return new Response('', { status: 200 })
   } catch (error) {
     console.error('Error in charge command handler:', error)
     return new Response('Internal server error', { status: 500 })
