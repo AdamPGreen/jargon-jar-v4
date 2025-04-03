@@ -114,13 +114,12 @@ export const config = {
      * - /auth/callback (Supabase auth callback)
      * - /auth/auth-code-error (Error display page)
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/auth/slack/callback|api/slack/|auth/callback|auth/auth-code-error).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/auth/slack/callback|api/slack/|auth/auth-code-error).*)',
     /* Explanation of the negative lookahead:
      * (?!...) : Negative lookahead assertion.
      * _next/static|_next/image|favicon.ico : Matches static assets.
      * api/auth/slack/callback : Excludes the specific Slack bot install callback.
      * api/slack/ : Excludes other potential Slack API endpoints like commands/interactions.
-     * auth/callback : Excludes the Supabase auth callback route.
      * auth/auth-code-error : Excludes the error page for auth.
      * .* : Matches any character (except newline) zero or more times.
      * This ensures the middleware runs on pages like '/', '/dashboard', etc., but not on the excluded paths.
