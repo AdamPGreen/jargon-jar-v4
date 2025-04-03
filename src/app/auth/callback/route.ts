@@ -46,11 +46,11 @@ export async function GET(request: NextRequest) {
       console.log('DIAGNOSTIC (Supabase Auth Callback): Session obtained. Checking workspace installation...')
       const user = sessionData.user
       // Find the Slack identity to get the Slack user ID
-      const slackIdentity = user.identities?.find(id => id.provider === 'slack')
+      const slackIdentity = user.identities?.find(id => id.provider === 'slack_oidc')
       // Explicitly cast identity_data to access provider-specific fields if necessary
       // Adjust casting based on actual data structure if needed
-      const slackIdentityData = slackIdentity?.identity_data as { team_id?: string } | undefined
-      const slackUserId = slackIdentity?.id
+      const slackIdentityData = slackIdentity?.identity_data as { team_id?: string, provider_id?: string } | undefined
+      const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
 
       if (!slackUserId) {
         console.error('DIAGNOSTIC (Supabase Auth Callback): Could not find Slack user ID in user identities.', user.identities)
