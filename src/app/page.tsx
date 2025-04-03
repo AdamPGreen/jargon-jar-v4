@@ -10,15 +10,16 @@ export default async function Home({
   const installRequired = searchParams.install_required === "true";
   const workspaceHint = searchParams.workspace_hint as string | undefined;
   
-  // Get Supabase auth URL
+  // Get Supabase auth URL - Rely on Supabase default redirect URI
   const supabase = createClient();
-  let signInUrl = '/auth/callback'; // Default fallback
+  let signInUrl = '/auth/callback'; // Default fallback in case of complete failure
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'slack',
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
-      }
+      // No explicit redirectTo - let Supabase use its configured default
+      // options: {
+      //   redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
+      // }
     });
 
     console.log("DIAGNOSTIC (Landing Page): Supabase signInWithOAuth response:", { data, error });
