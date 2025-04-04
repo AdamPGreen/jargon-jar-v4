@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 // Define types for activity items
-type ActivityItem = {
+export type ActivityItem = {
   id: string
   type: "received" | "made" // For determining if you were charged or you charged someone
   charging_user: {

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { ActivityFeed } from '@/components/activity-feed'
+import type { ActivityItem } from '@/components/activity-feed'
 
 // Define types for the data coming from Supabase
 type SupabaseActivityItem = {
@@ -80,7 +81,12 @@ export default async function DashboardPage() {
     .eq('charging_user_id', userData?.id)
 
   // Get recent activity (both charges made and received)
-  const { data: recentActivity } = await supabaseAdmin
+  console.log('Query Parameters:', {
+    userId: userData?.id,
+    workspaceId: userData?.workspace_id
+  });
+
+  const { data: recentActivity, error: activityError } = await supabaseAdmin
     .from('charges')
     .select(`
       id,
@@ -105,15 +111,27 @@ export default async function DashboardPage() {
         category
       )
     `)
-    .or(`charged_user_id.eq.${userData?.id},charging_user_id.eq.${userData?.id}`)
+    .or(
+      `and(charged_user_id.eq.${userData?.id},charged_user_id.is.not.null),` +
+      `and(charging_user_id.eq.${userData?.id},charging_user_id.is.not.null)`
+    )
     .order('created_at', { ascending: false })
     .limit(10)
+
+  if (activityError) {
+    console.error('Error fetching activity:', activityError);
+  }
 
   console.log('Recent Activity Raw:', recentActivity);
 
   // Transform the Supabase nested array results into the format ActivityFeed expects
-  const processedActivity = recentActivity?.map((item: SupabaseActivityItem) => {
-    console.log('Processing Activity Item:', item);
+  const processedActivity = (recentActivity?.map((item: SupabaseActivityItem) => {
+    // Validate required nested data exists
+    if (!item.charged_user?.[0] || !item.charging_user?.[0] || !item.jargon_term?.[0]) {
+      console.error('Invalid activity item structure:', item);
+      return null;
+    }
+
     const isReceived = item.charged_user[0].id === userData?.id;
     
     return {
@@ -135,10 +153,10 @@ export default async function DashboardPage() {
       },
       amount: item.amount,
       channel_id: item.channel_id,
-      category: item.jargon_terms[0]?.category || null,
+      category: item.jargon_terms[0]?.category ?? null,
       created_at: item.created_at
     }
-  }) || []
+  }).filter((item): item is NonNullable<typeof item> => item !== null) || []) as ActivityItem[];
 
   console.log('Processed Activity:', processedActivity);
 
