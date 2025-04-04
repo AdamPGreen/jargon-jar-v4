@@ -56,10 +56,20 @@ export default async function DashboardPage() {
     .single()
 
   // Get user's charges stats
-  const { count: chargesReceivedCount } = await supabaseAdmin
+  const { data: userCharges } = await supabaseAdmin
     .from('charges')
-    .select('*', { count: 'exact', head: true })
+    .select('amount')
     .eq('charged_user_id', userData?.id)
+
+  const userTotalCharges = userCharges?.reduce((sum, charge) => sum + charge.amount, 0) || 0
+
+  // Get workspace total charges
+  const { data: workspaceCharges } = await supabaseAdmin
+    .from('charges')
+    .select('amount')
+    .eq('workspace_id', userData?.workspace_id)
+
+  const workspaceTotalCharges = workspaceCharges?.reduce((sum, charge) => sum + charge.amount, 0) || 0
 
   // Get charges made by user
   const { count: chargesMadeCount } = await supabaseAdmin
@@ -134,16 +144,28 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border bg-card p-6 shadow-sm">
           <div className="text-sm font-medium text-muted-foreground">
-            Your Jar Total
+            Your Total Charges
           </div>
           <div className="mt-2 text-3xl font-bold">
-            ${chargesReceivedCount || 0}
+            ${userTotalCharges.toFixed(2)}
           </div>
           <div className="text-xs text-muted-foreground">
-            Times caught using jargon
+            Total amount you've been charged
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <div className="text-sm font-medium text-muted-foreground">
+            Workspace Total
+          </div>
+          <div className="mt-2 text-3xl font-bold">
+            ${workspaceTotalCharges.toFixed(2)}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Total charges across workspace
           </div>
         </div>
 
@@ -164,8 +186,8 @@ export default async function DashboardPage() {
             Jargon Ratio
           </div>
           <div className="mt-2 text-3xl font-bold">
-            {chargesMadeCount && chargesReceivedCount 
-              ? (chargesMadeCount / (chargesReceivedCount || 1)).toFixed(2)
+            {chargesMadeCount && userCharges?.length 
+              ? (chargesMadeCount / (userCharges.length || 1)).toFixed(2)
               : 'N/A'}
           </div>
           <div className="text-xs text-muted-foreground">
