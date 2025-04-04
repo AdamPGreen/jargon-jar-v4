@@ -447,17 +447,65 @@ async function handleModalSubmission(payload: ViewSubmissionPayload) { // Use in
       // --- 4. Fetch User DB IDs ---
       // Fetch the internal DB UUIDs for the users based on their Slack IDs
       const fetchUserDbId = async (slackId: string): Promise<string | null> => {
+          // First try to find the user in the database
           const { data: userData, error: userError } = await supabaseAdmin
               .from('users')
               .select('id')
               .eq('slack_id', slackId)
               .eq('workspace_id', workspaceIdDB) // Ensure user belongs to the correct workspace
               .single();
-          if (userError) {
-              console.error(`Error fetching user DB ID for Slack ID ${slackId} in workspace ${workspaceIdDB}:`, userError);
-              return null;
+          
+          // If user exists, return their ID
+          if (userData?.id) {
+              return userData.id;
           }
-          return userData?.id ?? null;
+          
+          // If user doesn't exist, fetch their info from Slack and create a new user
+          if (userError && userError.code === 'PGRST116') {
+              console.log(`User with Slack ID ${slackId} not found in database. Fetching from Slack and creating...`);
+              
+              try {
+                  // Fetch user info from Slack
+                  const userInfo = await slackWebClient.users.info({
+                      user: slackId
+                  });
+                  
+                  if (!userInfo.ok || !userInfo.user) {
+                      console.error(`Failed to fetch user info from Slack for ID ${slackId}:`, userInfo.error);
+                      return null;
+                  }
+                  
+                  const slackUser = userInfo.user;
+                  
+                  // Create a new user in the database
+                  const { data: newUser, error: createError } = await supabaseAdmin
+                      .from('users')
+                      .insert({
+                          slack_id: slackId,
+                          workspace_id: workspaceIdDB,
+                          display_name: slackUser.real_name || slackUser.name || 'Unknown User',
+                          email: slackUser.profile?.email || null,
+                          avatar_url: slackUser.profile?.image_192 || null
+                      })
+                      .select('id')
+                      .single();
+                  
+                  if (createError) {
+                      console.error(`Error creating user for Slack ID ${slackId}:`, createError);
+                      return null;
+                  }
+                  
+                  console.log(`Created new user in database for Slack ID ${slackId}:`, newUser?.id);
+                  return newUser?.id || null;
+              } catch (slackError) {
+                  console.error(`Error fetching user info from Slack for ID ${slackId}:`, slackError);
+                  return null;
+              }
+          }
+          
+          // For other errors, log and return null
+          console.error(`Error fetching user DB ID for Slack ID ${slackId} in workspace ${workspaceIdDB}:`, userError);
+          return null;
       };
 
       const [chargedDbUserId, chargingDbUserId] = await Promise.all([
@@ -467,6 +515,31 @@ async function handleModalSubmission(payload: ViewSubmissionPayload) { // Use in
 
       if (!chargedDbUserId || !chargingDbUserId) {
           console.error('Could not find database entries for one or both users:', { chargedUserId, chargingUserId, chargedDbUserId, chargingDbUserId });
+          
+          // Create a more user-friendly error message
+          let errorMessage = 'Unable to complete the charge. ';
+          
+          if (!chargedDbUserId) {
+              errorMessage += `The user <@${chargedUserId}> could not be found in our system. `;
+          }
+          
+          if (!chargingDbUserId) {
+              errorMessage += 'Your account could not be found in our system. ';
+          }
+          
+          errorMessage += 'Please try again later or contact an administrator.';
+          
+          // Send an ephemeral message to the user
+          try {
+              await slackWebClient.chat.postEphemeral({
+                  channel: channelId,
+                  user: chargingUserId,
+                  text: errorMessage
+              });
+          } catch (slackError) {
+              console.error('Error sending error message to user:', slackError);
+          }
+          
           return NextResponse.json({ error: 'Could not identify users involved in the charge.' }, { status: 400 });
       }
 
