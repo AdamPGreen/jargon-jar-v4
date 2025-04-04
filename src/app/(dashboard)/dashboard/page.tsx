@@ -55,6 +55,8 @@ export default async function DashboardPage() {
     .eq('slack_id', slackUserId)
     .single()
 
+  console.log('User Data:', { userData, slackUserId });
+
   // Get user's charges stats
   const { data: userCharges } = await supabaseAdmin
     .from('charges')
@@ -107,8 +109,11 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: false })
     .limit(10)
 
+  console.log('Recent Activity Raw:', recentActivity);
+
   // Transform the Supabase nested array results into the format ActivityFeed expects
   const processedActivity = recentActivity?.map((item: SupabaseActivityItem) => {
+    console.log('Processing Activity Item:', item);
     const isReceived = item.charged_user[0].id === userData?.id;
     
     return {
@@ -135,6 +140,8 @@ export default async function DashboardPage() {
     }
   }) || []
 
+  console.log('Processed Activity:', processedActivity);
+
   return (
     <div className="space-y-6">
       <div>
@@ -143,6 +150,18 @@ export default async function DashboardPage() {
           Welcome to your Jargon Jar dashboard.
         </p>
       </div>
+
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <div className="text-sm font-medium text-muted-foreground">
+            Workspace Total
+          </div>
+          <div className="mt-2 text-3xl font-bold">
+            ${workspaceTotalCharges.toFixed(2)}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Total charges across workspace
+          </div>
+        </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border bg-card p-6 shadow-sm">
@@ -157,17 +176,6 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <div className="text-sm font-medium text-muted-foreground">
-            Workspace Total
-          </div>
-          <div className="mt-2 text-3xl font-bold">
-            ${workspaceTotalCharges.toFixed(2)}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Total charges across workspace
-          </div>
-        </div>
 
         <div className="rounded-lg border bg-card p-6 shadow-sm">
           <div className="text-sm font-medium text-muted-foreground">
