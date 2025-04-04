@@ -153,7 +153,7 @@ export default async function DashboardPage() {
       },
       amount: item.amount,
       channel_id: item.channel_id,
-      category: item.jargon_terms[0]?.category || null,
+      category: item.jargon_terms[0]?.category ?? null,
       created_at: item.created_at
     }
   }).filter((item): item is ActivityItem => item !== null) || []) as ActivityItem[];
