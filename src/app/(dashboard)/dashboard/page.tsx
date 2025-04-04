@@ -156,7 +156,7 @@ export default async function DashboardPage() {
       category: item.jargon_terms[0]?.category ?? null,
       created_at: item.created_at
     }
-  }).filter((item): item is ActivityItem => item !== null) || []) as ActivityItem[];
+  }).filter((item): item is NonNullable<typeof item> => item !== null) || []) as ActivityItem[];
 
   console.log('Processed Activity:', processedActivity);
 
