@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { BellIcon, DollarSignIcon, ZapIcon, FilterIcon } from "lucide-react"
+import { BellIcon, DollarSignIcon, HandCoinsIcon, BookOpenIcon, PencilIcon } from "lucide-react"
 
 // Define types for activity items
 export type ActivityItem = {
@@ -115,7 +115,7 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
     }
     
     return (
-      <div key={activity.id} className="p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors duration-200 ease-in-out">
+      <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors duration-200 ease-in-out">
         <div className="flex gap-3 items-start">
           <Avatar className="h-8 w-8 rounded-full">
             <AvatarImage 
@@ -158,7 +158,7 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
                 >
                   {activity.type === "term_added" ? (
                     <>
-                      <FilterIcon className="h-3 w-3" />
+                      <PencilIcon className="h-3 w-3" />
                       <span>Term</span>
                     </>
                   ) : (
@@ -188,19 +188,19 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
           </TabsTrigger>
           <TabsTrigger value="received" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
             <span className="flex items-center gap-2">
-              <DollarSignIcon className="h-4 w-4" />
-              Charges
+              <HandCoinsIcon className="h-4 w-4" />
+              My Offenses
             </span>
           </TabsTrigger>
           <TabsTrigger value="made" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
             <span className="flex items-center gap-2">
-              <ZapIcon className="h-4 w-4" />
-              Auto
+              <DollarSignIcon className="h-4 w-4" />
+              Charged
             </span>
           </TabsTrigger>
           <TabsTrigger value="terms" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
             <span className="flex items-center gap-2">
-              <FilterIcon className="h-4 w-4" />
+              <BookOpenIcon className="h-4 w-4" />
               Terms
             </span>
           </TabsTrigger>
@@ -209,7 +209,11 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
         <TabsContent value="all" className="bg-white">
           <div className="divide-y divide-gray-100">
             {activities.length > 0 ? (
-              activities.map(renderActivity)
+              activities.map((activity, index) => (
+                <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
+                  {renderActivity(activity)}
+                </div>
+              ))
             ) : (
               renderEmptyState("all")
             )}
@@ -219,7 +223,11 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
         <TabsContent value="received" className="bg-white">
           <div className="divide-y divide-gray-100">
             {receivedActivities.length > 0 ? (
-              receivedActivities.map(renderActivity)
+              receivedActivities.map((activity, index) => (
+                <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
+                  {renderActivity(activity)}
+                </div>
+              ))
             ) : (
               renderEmptyState("received")
             )}
@@ -229,7 +237,11 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
         <TabsContent value="made" className="bg-white">
           <div className="divide-y divide-gray-100">
             {madeActivities.length > 0 ? (
-              madeActivities.map(renderActivity)
+              madeActivities.map((activity, index) => (
+                <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
+                  {renderActivity(activity)}
+                </div>
+              ))
             ) : (
               renderEmptyState("made")
             )}
@@ -239,7 +251,11 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
         <TabsContent value="terms" className="bg-white">
           <div className="divide-y divide-gray-100">
             {termAddedActivities.length > 0 ? (
-              termAddedActivities.map(renderActivity)
+              termAddedActivities.map((activity, index) => (
+                <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
+                  {renderActivity(activity)}
+                </div>
+              ))
             ) : (
               renderEmptyState("terms")
             )}
