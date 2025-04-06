@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { type ReactNode } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -55,26 +56,47 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
   const renderActivity = (activity: ActivityItem) => {
     // Determine which user to show (either who charged you or who you charged)
     const isReceived = activity.charged_user.id === userId
-    const otherUser = isReceived ? activity.charging_user : activity.charged_user
-    const userAction = isReceived ? "charged you for saying" : "charged for saying"
+    const isViewingUser = activity.charging_user.id === userId
     
     // Format timestamp
     const timeAgo = formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })
+    
+    // Build the charge description
+    let chargeDescription: ReactNode
+    if (isViewingUser) {
+      chargeDescription = (
+        <>
+          <span className="font-medium">You</span> charged <span className="font-medium">{activity.charged_user.display_name}</span> for saying
+        </>
+      )
+    } else if (isReceived) {
+      chargeDescription = (
+        <>
+          <span className="font-medium">{activity.charging_user.display_name}</span> charged <span className="font-medium">you</span> for saying
+        </>
+      )
+    } else {
+      chargeDescription = (
+        <>
+          <span className="font-medium">{activity.charging_user.display_name}</span> charged <span className="font-medium">{activity.charged_user.display_name}</span> for saying
+        </>
+      )
+    }
     
     return (
       <div key={activity.id} className="p-4 border-b last:border-b-0">
         <div className="flex gap-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.display_name} />
-            <AvatarFallback>{otherUser.display_name.substring(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarImage src={activity.charging_user.avatar_url || undefined} alt={activity.charging_user.display_name} />
+            <AvatarFallback>{activity.charging_user.display_name.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium">
-                  {isReceived ? otherUser.display_name : "You"} {userAction}{" "}
-                  <span className="text-red-500 font-semibold">"{activity.jargon_term.term}"</span>
+                <p className="text-sm">
+                  {chargeDescription}{" "}
+                  <span className="font-semibold">"{activity.jargon_term.term}"</span>
                 </p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm font-semibold">${activity.amount}</span>
@@ -86,12 +108,6 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
                 </div>
               </div>
               <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo}</span>
-            </div>
-            
-            <div className="mt-2 flex justify-between items-center">
-              <Link href="#" className="text-xs text-blue-500 hover:underline">
-                Appeal
-              </Link>
             </div>
           </div>
         </div>

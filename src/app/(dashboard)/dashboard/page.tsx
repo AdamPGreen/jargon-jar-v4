@@ -174,79 +174,81 @@ export default async function DashboardPage() {
   console.log('Processed Activity:', processedActivity);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      {/* Left Column - Main Content */}
-      <div className="lg:col-span-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome to your Jargon Jar dashboard.
-          </p>
-        </div>
-
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <div className="text-sm font-medium text-muted-foreground">
-            Workspace Total
-          </div>
-          <div className="mt-2 text-3xl font-bold">
-            ${workspaceTotalCharges.toFixed(2)}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Total charges across workspace
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border bg-card p-6 shadow-sm">
-            <div className="text-sm font-medium text-muted-foreground">
-              Your Total Charges
-            </div>
-            <div className="mt-2 text-3xl font-bold">
-              ${userTotalCharges.toFixed(2)}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Total amount you've been charged
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6 shadow-sm">
-            <div className="text-sm font-medium text-muted-foreground">
-              Charges Made
-            </div>
-            <div className="mt-2 text-3xl font-bold">
-              {chargesMadeCount || 0}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Times you've caught others
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6 shadow-sm">
-            <div className="text-sm font-medium text-muted-foreground">
-              Jargon Ratio
-            </div>
-            <div className="mt-2 text-3xl font-bold">
-              {chargesMadeCount && userCharges?.length 
-                ? (chargesMadeCount / (userCharges.length || 1)).toFixed(2)
-                : 'N/A'}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Higher is better!
-            </div>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Welcome to your Jargon Jar dashboard.
+        </p>
       </div>
 
-      {/* Right Column - Activity Feed */}
-      <div className="lg:col-span-4">
-        <div className="rounded-lg border shadow-sm h-full">
-          <div className="p-6">
-            <h2 className="text-xl font-semibold">Recent Activity</h2>
-            <p className="text-sm text-muted-foreground">
-              Your recent jargon charges and payments.
-            </p>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column - Main Content */}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="rounded-lg border bg-card p-6 shadow-sm">
+            <div className="text-sm font-medium text-muted-foreground">
+              Workspace Total
+            </div>
+            <div className="mt-2 text-3xl font-bold">
+              ${workspaceTotalCharges.toFixed(2)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Total charges across workspace
+            </div>
           </div>
-          <ActivityFeed activities={processedActivity} userId={userData?.id} />
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border bg-card p-6 shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">
+                Your Total Charges
+              </div>
+              <div className="mt-2 text-3xl font-bold">
+                ${userTotalCharges.toFixed(2)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Total amount you've been charged
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-card p-6 shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">
+                Charges Made
+              </div>
+              <div className="mt-2 text-3xl font-bold">
+                {chargesMadeCount || 0}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Times you've caught others
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-card p-6 shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">
+                Jargon Ratio
+              </div>
+              <div className="mt-2 text-3xl font-bold">
+                {chargesMadeCount && userCharges?.length 
+                  ? (chargesMadeCount / (userCharges.length || 1)).toFixed(2)
+                  : 'N/A'}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Higher is better!
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Activity Feed */}
+        <div className="lg:col-span-4">
+          <div className="rounded-lg border shadow-sm h-full">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold">Recent Activity</h2>
+              <p className="text-sm text-muted-foreground">
+                Your recent jargon charges and payments.
+              </p>
+            </div>
+            <ActivityFeed activities={processedActivity} userId={userData?.id} />
+          </div>
         </div>
       </div>
     </div>
