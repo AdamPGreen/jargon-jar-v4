@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { BellIcon, DollarSignIcon, HandCoinsIcon, BookOpenIcon, PencilIcon, AlertCircle, Skull } from "lucide-react"
+import { BellIcon, DollarSignIcon, HandCoinsIcon, BookOpenIcon, PencilIcon, AlertCircle, Skull, Eye } from "lucide-react"
 
 // Define types for activity items
 export type ActivityItem = {
@@ -157,7 +157,9 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
                   className={`rounded-full px-2 py-0.5 text-xs font-medium flex items-center gap-1
                     ${activity.type === "term_added" 
                       ? "bg-[rgba(84,191,4,0.2)] text-[#419703]" 
-                      : "bg-[rgba(254,202,17,0.2)] text-[#e6b600]"}`}
+                      : activity.type === "received"
+                        ? "bg-[rgba(255,99,71,0.2)] text-[#ff6347]"
+                        : "bg-[rgba(254,202,17,0.2)] text-[#e6b600]"}`}
                 >
                   {activity.type === "term_added" ? (
                     <>
@@ -166,8 +168,17 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
                     </>
                   ) : (
                     <>
-                      <DollarSignIcon className="h-3 w-3" />
-                      <span>{activity.type === "received" ? "Caught" : "Gotcha"}</span>
+                      {activity.type === "received" ? (
+                        <>
+                          <Skull className="h-3 w-3" />
+                          <span>Caught</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="h-3 w-3" />
+                          <span>Gotcha</span>
+                        </>
+                      )}
                     </>
                   )}
                 </Badge>
@@ -191,13 +202,13 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
           </TabsTrigger>
           <TabsTrigger value="received" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
             <span className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
+              <Skull className="h-4 w-4" />
               Times Caught
             </span>
           </TabsTrigger>
           <TabsTrigger value="made" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
             <span className="flex items-center gap-2">
-              <Skull className="h-4 w-4" />
+              <Eye className="h-4 w-4" />
               Gotchas
             </span>
           </TabsTrigger>
