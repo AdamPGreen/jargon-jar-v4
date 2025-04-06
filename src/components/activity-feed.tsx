@@ -67,7 +67,10 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
 
   // Filter activities based on type
   const receivedActivities = activities.filter(item => item.charged_user?.id === userId)
-  const madeActivities = activities.filter(item => item.charging_user?.id === userId)
+  const madeActivities = activities.filter(item => 
+    item.charging_user?.id === userId && 
+    item.type !== "term_added"
+  )
   const termAddedActivities = activities.filter(item => item.type === "term_added")
 
   // Helper function to render activity item
