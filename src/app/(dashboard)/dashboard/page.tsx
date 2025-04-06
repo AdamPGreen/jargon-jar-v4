@@ -5,7 +5,7 @@ import type { ActivityItem } from '@/components/activity-feed'
 import { differenceInDays, parseISO } from 'date-fns'
 import { StreakCard } from '@/components/streak-card'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSignIcon, ZapIcon } from 'lucide-react'
+import { DollarSignIcon, ZapIcon, RepeatIcon } from 'lucide-react'
 
 // Define types for the data coming from Supabase
 type SupabaseActivityItem = {
@@ -62,7 +62,14 @@ export default async function DashboardPage() {
   // Get user's charges stats including timestamps
   const { data: userChargesData, error: userChargesError } = await supabaseAdmin
     .from('charges')
-    .select('amount, created_at')
+    .select(`
+      amount, 
+      created_at,
+      jargon_term:jargon_term_id (
+        id,
+        term
+      )
+    `)
     .eq('charged_user_id', userData?.id)
     .order('created_at', { ascending: true }) // Order oldest to newest for record calculation
 
@@ -109,6 +116,35 @@ export default async function DashboardPage() {
     recordStreak = Math.max(maxGap, currentStreak); 
   }
   // --- End Streak Calculation ---
+
+  // --- Most Common Jargon Calculation ---
+  let mostCommonJargon = { term: 'N/A', count: 0 };
+  if (userCharges && userCharges.length > 0) {
+    const termCounts: Record<string, { term: string; count: number }> = {};
+    
+    for (const charge of userCharges) {
+      // Ensure jargon_term exists and has valid properties
+      const jargonTerm = charge.jargon_term as { id?: string; term?: string } | null;
+      if (jargonTerm?.id && jargonTerm?.term) {
+        const termId = jargonTerm.id;
+        const termName = jargonTerm.term;
+        if (!termCounts[termId]) {
+          termCounts[termId] = { term: termName, count: 0 };
+        }
+        termCounts[termId].count++;
+      }
+    }
+
+    const sortedTerms = Object.values(termCounts).sort((a, b) => b.count - a.count);
+    
+    if (sortedTerms.length > 0) {
+      mostCommonJargon = sortedTerms[0];
+    } else {
+      // Handle case where charges exist but none have valid jargon terms
+      mostCommonJargon = { term: 'Unknown', count: 0 };
+    }
+  }
+  // --- End Most Common Jargon Calculation ---
 
   // Get workspace total charges
   const { data: workspaceCharges } = await supabaseAdmin
@@ -289,23 +325,29 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column - Main Content */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Workspace Total Card - Updated to use Shadcn Card */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Workspace Total
-              </CardTitle>
-              <DollarSignIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">
-                ${workspaceTotalCharges.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total charges across workspace
-              </p>
-            </CardContent>
-          </Card>
+          {/* Top Row - Workspace Total and Streak Cards */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Workspace Total Card - Updated to use Shadcn Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Workspace Total
+                </CardTitle>
+                <DollarSignIcon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  ${workspaceTotalCharges.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Total charges across workspace
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Streak Card - Moved next to Workspace Total */}
+            <StreakCard currentStreak={currentStreak} recordStreak={recordStreak} />
+          </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             {/* Your Total Charges Card - Updated to use Shadcn Card */}
@@ -344,8 +386,23 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Streak Card - Already using Shadcn Card internally */}
-            <StreakCard currentStreak={currentStreak} recordStreak={recordStreak} />
+            {/* Most Common Jargon Card - NEW */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Most Frequent Jargon
+                </CardTitle>
+                <RepeatIcon className="h-4 w-4 text-muted-foreground" /> 
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold truncate" title={mostCommonJargon.term}>
+                  {mostCommonJargon.term}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Charged {mostCommonJargon.count} time{mostCommonJargon.count !== 1 ? 's' : ''}
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
