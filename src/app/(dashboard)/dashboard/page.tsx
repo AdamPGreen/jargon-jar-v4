@@ -13,16 +13,16 @@ type SupabaseActivityItem = {
     id: string
     display_name: string
     avatar_url: string | null
-  }[]
+  }
   charged_user: {
     id: string
     display_name: string
     avatar_url: string | null
-  }[]
+  }
   jargon_term: {
     id: string
     term: string
-  }[]
+  }
 }
 
 export default async function DashboardPage() {
@@ -116,36 +116,58 @@ export default async function DashboardPage() {
   console.log('Recent Activity Raw:', recentActivity);
 
   // Transform the Supabase nested array results into the format ActivityFeed expects
-  const processedActivity = (recentActivity?.map((item: SupabaseActivityItem) => {
+  const processedActivity = (recentActivity?.map((item) => {
+    // Use type assertion to handle the mismatch between expected and actual data structure
+    const typedItem = item as unknown as {
+      id: string;
+      amount: number;
+      channel_id: string;
+      created_at: string;
+      charging_user: {
+        id: string;
+        display_name: string;
+        avatar_url: string | null;
+      };
+      charged_user: {
+        id: string;
+        display_name: string;
+        avatar_url: string | null;
+      };
+      jargon_term: {
+        id: string;
+        term: string;
+      };
+    };
+    
     // Validate required nested data exists
-    if (!item.charged_user?.[0] || !item.charging_user?.[0] || !item.jargon_term?.[0]) {
-      console.error('Invalid activity item structure:', item);
+    if (!typedItem.charged_user || !typedItem.charging_user || !typedItem.jargon_term) {
+      console.error('Invalid activity item structure:', typedItem);
       return null;
     }
 
-    const isReceived = item.charged_user[0].id === userData?.id;
+    const isReceived = typedItem.charged_user.id === userData?.id;
     
     return {
-      id: item.id,
+      id: typedItem.id,
       type: isReceived ? "received" as const : "made" as const,
       charging_user: {
-        id: item.charging_user[0].id,
-        display_name: item.charging_user[0].display_name,
-        avatar_url: item.charging_user[0].avatar_url
+        id: typedItem.charging_user.id,
+        display_name: typedItem.charging_user.display_name,
+        avatar_url: typedItem.charging_user.avatar_url
       },
       charged_user: {
-        id: item.charged_user[0].id,
-        display_name: item.charged_user[0].display_name,
-        avatar_url: item.charged_user[0].avatar_url
+        id: typedItem.charged_user.id,
+        display_name: typedItem.charged_user.display_name,
+        avatar_url: typedItem.charged_user.avatar_url
       },
       jargon_term: {
-        id: item.jargon_term[0].id,
-        term: item.jargon_term[0].term
+        id: typedItem.jargon_term.id,
+        term: typedItem.jargon_term.term
       },
-      amount: item.amount,
-      channel_id: item.channel_id,
+      amount: typedItem.amount,
+      channel_id: typedItem.channel_id,
       category: null,
-      created_at: item.created_at
+      created_at: typedItem.created_at
     }
   }).filter((item): item is NonNullable<typeof item> => item !== null) || []) as ActivityItem[];
 

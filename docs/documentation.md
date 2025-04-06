@@ -293,6 +293,36 @@ This document compiles essential documentation links for building the Jargon Jar
 - `GET /api/charges` - List charges (filterable)
 - `GET /api/charges/stats` - Get charging statistics
 
+### Data Structures
+
+#### Charge Object
+When fetching charges from the database, the data structure includes nested objects for related entities:
+
+```typescript
+type Charge = {
+  id: string;
+  amount: number;
+  channel_id: string;
+  created_at: string;
+  charging_user: {
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+  charged_user: {
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+  jargon_term: {
+    id: string;
+    term: string;
+  };
+}
+```
+
+This structure is used in the dashboard's activity feed to display recent charges. The nested objects represent the related entities (users and jargon terms) directly, rather than as arrays.
+
 ### Users
 - `GET /api/users/me` - Get current user
 - `GET /api/users/:id` - Get user details
