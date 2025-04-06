@@ -164,7 +164,6 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                   dataKey="total_charges" 
                   fill="#FDDB3E" 
                   radius={[4, 4, 0, 0]}
-                  activeBar={{ fill: '#ffe56d' }}
                 >
                   <LabelList 
                     dataKey="formatted_charges" 
