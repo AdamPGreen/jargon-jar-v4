@@ -11,12 +11,17 @@ import {
   ResponsiveContainer, 
   LabelList 
 } from 'recharts';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 type JargonUser = {
   id: string
   display_name: string
   avatar_url: string | null
   total_charges: number
+  jargon_count?: number
+  favorite_phrase?: string
+  rank?: number
 }
 
 interface HallOfShameProps {
@@ -30,10 +35,27 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
     : null;
   
   // Format charges for display
-  const formattedTopUsers = topUsers.map(user => ({
+  const formattedTopUsers = topUsers.map((user, index) => ({
     ...user,
-    formatted_charges: `$${user.total_charges.toFixed(2)}`
+    formatted_charges: `$${user.total_charges.toFixed(2)}`,
+    rank: index + 1
   }));
+
+  const getRankMessage = (rank: number, total: number) => {
+    if (rank === 1) return "The undisputed champion of corporate speak!";
+    if (rank === 2) return "So close to the jargon throne! Keep trying?";
+    if (rank <= Math.ceil(total / 2)) return "Mid-tier buzzword offender. Going for promotion?";
+    if (rank === total) return "Congratulations on basic communication skills!";
+    return "Almost speaking like a normal human!";
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase();
+  };
 
   return (
     <Card>
@@ -85,28 +107,53 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                   tick={{ fontSize: 12 }}
                 />
                 <RechartsTooltip 
-                  cursor={{ fill: 'transparent' }}
+                  cursor={{ fill: 'rgba(253, 219, 62, 0.3)' }}
+                  wrapperStyle={{ outline: 'none' }}
+                  position={{ y: -12 }}
+                  allowEscapeViewBox={{ x: true, y: true }}
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
+                      const user = payload[0].payload as JargonUser & { 
+                        formatted_charges: string, 
+                        rank: number 
+                      };
+                      
                       return (
-                        <div className="rounded-lg border bg-background p-2 shadow-sm">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex flex-col">
-                              <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                User
-                              </span>
-                              <span className="font-bold text-muted-foreground">
-                                {payload[0].payload.display_name}
-                              </span>
+                        <div 
+                          className="bg-white rounded-lg border border-[#e2e8f0] shadow-md p-3 max-w-[250px] animate-in fade-in-50 slide-in-from-bottom-1 duration-200 z-50"
+                          style={{ animation: 'fadeIn 150ms ease-out' }}
+                        >
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={user.avatar_url || undefined} alt={user.display_name} />
+                              <AvatarFallback>{getInitials(user.display_name)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-bold text-[#191d22] text-sm">
+                              {user.display_name}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="font-medium">
+                              Total charged: <span className="font-bold">{user.formatted_charges}</span>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                Charges
-                              </span>
-                              <span className="font-bold">
-                                {payload[0].payload.formatted_charges}
-                              </span>
-                            </div>
+                            {user.jargon_count !== undefined && (
+                              <div>
+                                Jargon count: <span className="font-medium">{user.jargon_count} uses</span>
+                              </div>
+                            )}
+                            {user.favorite_phrase && (
+                              <div>
+                                Favorite phrase: <span className="italic">"{user.favorite_phrase}"</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className={cn(
+                            "mt-2 text-sm",
+                            user.rank === 1 ? "text-[#FF5533] font-medium" : "text-gray-600"
+                          )}>
+                            {getRankMessage(user.rank, formattedTopUsers.length)}
                           </div>
                         </div>
                       );
@@ -116,8 +163,9 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                 />
                 <Bar 
                   dataKey="total_charges" 
-                  fill="#ffc96f" 
+                  fill="#FDDB3E" 
                   radius={[4, 4, 0, 0]}
+                  activeBar={{ fill: '#ffe56d' }}
                 >
                   <LabelList 
                     dataKey="formatted_charges" 
