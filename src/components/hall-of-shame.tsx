@@ -10,7 +10,6 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts'
-import type { TooltipProps } from 'recharts'
 
 type JargonUser = {
   id: string
@@ -37,6 +36,17 @@ interface CustomTickProps {
   payload?: {
     value: string
   }
+}
+
+// Define custom tooltip props
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    value: number;
+    dataKey: string;
+    name: string;
+  }>;
+  label?: string;
 }
 
 export function HallOfShame({ topUsers }: HallOfShameProps) {
@@ -98,13 +108,9 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
   }
   
   // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }: {
-    active?: boolean;
-    payload?: Array<{ value: number }>;
-    label?: string;
-  }) => {
+  const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length > 0) {
-      const value = payload[0].value as number;
+      const value = payload[0].value;
       return (
         <div className="bg-white p-3 rounded-md shadow-sm border">
           <p className="font-medium">{label}</p>
