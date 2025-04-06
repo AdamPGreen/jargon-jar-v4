@@ -1,12 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { type ReactNode } from "react"
+import { type ReactNode, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { BellIcon, DollarSignIcon, HandCoinsIcon, BookOpenIcon, PencilIcon, AlertCircle, Skull, Eye } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 // Define types for activity items
 export type ActivityItem = {
@@ -39,7 +40,11 @@ type ActivityFeedProps = {
   userId: string // The current user's ID
 }
 
+const ITEMS_PER_PAGE = 5
+
 export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
+  const [visibleItems, setVisibleItems] = useState(ITEMS_PER_PAGE)
+
   // Helper function to render empty state for a specific tab
   const renderEmptyState = (type: string) => {
     let message = "No corporate speak here. Refreshing, isn't it?"
@@ -69,9 +74,14 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
   const receivedActivities = activities.filter(item => item.charged_user?.id === userId)
   const madeActivities = activities.filter(item => 
     item.charging_user?.id === userId && 
+    item.charged_user?.id !== userId &&
     item.type !== "term_added"
   )
   const termAddedActivities = activities.filter(item => item.type === "term_added")
+
+  const loadMore = () => {
+    setVisibleItems(prev => prev + ITEMS_PER_PAGE)
+  }
 
   // Helper function to render activity item
   const renderActivity = (activity: ActivityItem) => {
@@ -190,10 +200,39 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
     )
   }
 
+  // Helper function to render activity items with pagination
+  const renderActivityList = (items: ActivityItem[]) => {
+    const hasMore = items.length > visibleItems
+    const displayedItems = items.slice(0, visibleItems)
+
+    return (
+      <div className="flex flex-col">
+        <div className="divide-y divide-gray-100">
+          {displayedItems.map((activity, index) => (
+            <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
+              {renderActivity(activity)}
+            </div>
+          ))}
+        </div>
+        {hasMore && (
+          <div className="p-4 flex justify-center border-t border-gray-100">
+            <Button
+              variant="ghost"
+              className="text-sm text-muted-foreground hover:text-foreground"
+              onClick={loadMore}
+            >
+              View More
+            </Button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="font-inter">
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="w-full bg-white border-b">
+        <TabsList className="w-full bg-white border-b rounded-t-lg">
           <TabsTrigger value="all" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
             <span className="flex items-center gap-2">
               <BellIcon className="h-4 w-4" />
@@ -220,61 +259,23 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="all" className="bg-white">
-          <div className="divide-y divide-gray-100">
-            {activities.length > 0 ? (
-              activities.map((activity, index) => (
-                <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
-                  {renderActivity(activity)}
-                </div>
-              ))
-            ) : (
-              renderEmptyState("all")
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="received" className="bg-white">
-          <div className="divide-y divide-gray-100">
-            {receivedActivities.length > 0 ? (
-              receivedActivities.map((activity, index) => (
-                <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
-                  {renderActivity(activity)}
-                </div>
-              ))
-            ) : (
-              renderEmptyState("received")
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="made" className="bg-white">
-          <div className="divide-y divide-gray-100">
-            {madeActivities.length > 0 ? (
-              madeActivities.map((activity, index) => (
-                <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
-                  {renderActivity(activity)}
-                </div>
-              ))
-            ) : (
-              renderEmptyState("made")
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="terms" className="bg-white">
-          <div className="divide-y divide-gray-100">
-            {termAddedActivities.length > 0 ? (
-              termAddedActivities.map((activity, index) => (
-                <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
-                  {renderActivity(activity)}
-                </div>
-              ))
-            ) : (
-              renderEmptyState("terms")
-            )}
-          </div>
-        </TabsContent>
+        <div className="bg-white rounded-b-lg overflow-hidden">
+          <TabsContent value="all" className="m-0">
+            {activities.length > 0 ? renderActivityList(activities) : renderEmptyState("all")}
+          </TabsContent>
+          
+          <TabsContent value="received" className="m-0">
+            {receivedActivities.length > 0 ? renderActivityList(receivedActivities) : renderEmptyState("received")}
+          </TabsContent>
+          
+          <TabsContent value="made" className="m-0">
+            {madeActivities.length > 0 ? renderActivityList(madeActivities) : renderEmptyState("made")}
+          </TabsContent>
+          
+          <TabsContent value="terms" className="m-0">
+            {termAddedActivities.length > 0 ? renderActivityList(termAddedActivities) : renderEmptyState("terms")}
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   )
