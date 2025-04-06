@@ -207,8 +207,45 @@ export default async function DashboardPage() {
     return acc;
   }, {} as Record<string, { id: string; display_name: string; avatar_url: string | null; total_charges: number }>);
 
+  // Get jargon counts for top users
+  const userIds = Object.keys(processedTopUsers || {});
+  const { data: jargonCounts, error: jargonCountsError } = await supabaseAdmin
+    .from('user_jargon_counts')
+    .select('charged_user_id, jargon_count')
+    .in('charged_user_id', userIds);
+
+  if (jargonCountsError) {
+    console.error('Error fetching jargon counts:', jargonCountsError);
+  }
+
+  // Get favorite phrases for top users
+  const { data: favoriteJargon, error: favoriteJargonError } = await supabaseAdmin
+    .from('user_favorite_jargon')
+    .select('charged_user_id, favorite_phrase')
+    .in('charged_user_id', userIds);
+
+  if (favoriteJargonError) {
+    console.error('Error fetching favorite jargon:', favoriteJargonError);
+  }
+
+  // Create maps for easy lookup
+  const jargonCountMap = (jargonCounts || []).reduce((acc, item) => {
+    acc[item.charged_user_id] = item.jargon_count;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const favoriteJargonMap = (favoriteJargon || []).reduce((acc, item) => {
+    acc[item.charged_user_id] = item.favorite_phrase;
+    return acc;
+  }, {} as Record<string, string>);
+
   // Convert to array and sort by total charges (descending)
   const topUsers = Object.values(processedTopUsers || {})
+    .map(user => ({
+      ...user,
+      jargon_count: jargonCountMap[user.id] || 0,
+      favorite_phrase: favoriteJargonMap[user.id] || 'None yet'
+    }))
     .sort((a, b) => b.total_charges - a.total_charges)
     .slice(0, 5);
 
