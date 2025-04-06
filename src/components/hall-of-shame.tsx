@@ -50,17 +50,38 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart 
-                layout="vertical" 
                 data={formattedTopUsers}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
               >
-                <XAxis type="number" hide={true} /> 
-                <YAxis 
+                <XAxis 
                   dataKey="display_name" 
                   type="category" 
+                  axisLine={true} 
+                  tickLine={false}
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text 
+                          x={0} 
+                          y={0} 
+                          dy={16} 
+                          textAnchor="end" 
+                          transform="rotate(-45)"
+                          fontSize={12}
+                          fill="currentColor"
+                        >
+                          {payload.value}
+                        </text>
+                      </g>
+                    );
+                  }}
+                  height={60}
+                />
+                <YAxis 
+                  type="number" 
                   axisLine={false} 
                   tickLine={false}
-                  width={80} 
                   tick={{ fontSize: 12 }}
                 />
                 <RechartsTooltip 
@@ -93,10 +114,14 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                     return null;
                   }}
                 />
-                <Bar dataKey="total_charges" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
+                <Bar 
+                  dataKey="total_charges" 
+                  fill="#ffc96f" 
+                  radius={[4, 4, 0, 0]}
+                >
                   <LabelList 
                     dataKey="formatted_charges" 
-                    position="right" 
+                    position="top" 
                     style={{ fill: 'hsl(var(--foreground))', fontSize: 12 }} 
                   />
                 </Bar>
