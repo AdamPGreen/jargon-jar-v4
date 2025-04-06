@@ -5,7 +5,7 @@ import {
   Bar, 
   XAxis, 
   YAxis, 
-  Tooltip, 
+  Tooltip as RechartsTooltip, 
   ResponsiveContainer, 
   LabelList 
 } from 'recharts';
@@ -52,16 +52,16 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                 data={formattedTopUsers}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
-                <XAxis type="number" hide /> 
+                <XAxis type="number" hide={true} /> 
                 <YAxis 
                   dataKey="display_name" 
                   type="category" 
                   axisLine={false} 
                   tickLine={false}
-                  width={80} // Adjust width as needed for names
+                  width={80} 
                   tick={{ fontSize: 12 }}
                 />
-                <Tooltip 
+                <RechartsTooltip 
                   cursor={{ fill: 'transparent' }}
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
@@ -91,7 +91,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                     return null;
                   }}
                 />
-                <Bar dataKey="total_charges" layout="vertical" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="total_charges" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
                   <LabelList 
                     dataKey="formatted_charges" 
                     position="right" 
