@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { BellIcon, DollarSignIcon, HandCoinsIcon, BookOpenIcon, PencilIcon, AlertCircle, Skull, Eye } from "lucide-react"
+import { BellIcon, DollarSignIcon, HandCoinsIcon, BookOpenIcon, PencilIcon, AlertCircle, Skull, Eye, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 // Define types for activity items
@@ -38,12 +38,14 @@ export type ActivityItem = {
 type ActivityFeedProps = {
   activities: ActivityItem[]
   userId: string // The current user's ID
+  onCancelCharge?: (chargeId: string) => void
 }
 
 const ITEMS_PER_PAGE = 5
 
-export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
+export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFeedProps) {
   const [visibleItems, setVisibleItems] = useState(ITEMS_PER_PAGE)
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null)
 
   // Helper function to render empty state for a specific tab
   const renderEmptyState = (type: string) => {
@@ -81,6 +83,21 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
 
   const loadMore = () => {
     setVisibleItems(prev => prev + ITEMS_PER_PAGE)
+  }
+
+  const handleCancelClick = (id: string) => {
+    setCancelConfirmId(id)
+  }
+
+  const handleConfirmCancel = (id: string) => {
+    if (onCancelCharge) {
+      onCancelCharge(id)
+    }
+    setCancelConfirmId(null)
+  }
+
+  const handleCancelCancel = () => {
+    setCancelConfirmId(null)
   }
 
   // Helper function to render activity item
@@ -127,8 +144,11 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
       }
     }
     
+    // Determine if this activity can be cancelled (only "made" charges can be cancelled by the user who made them)
+    const canCancel = activity.type === "made" && activity.charging_user?.id === userId
+    
     return (
-      <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors duration-200 ease-in-out">
+      <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors duration-200 ease-in-out relative">
         <div className="flex gap-3 items-start">
           <Avatar className="h-8 w-8 rounded-full">
             <AvatarImage 
@@ -163,39 +183,86 @@ export function ActivityFeed({ activities, userId }: ActivityFeedProps) {
                 )}
               </div>
               <div className="ml-2">
-                <Badge 
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium flex items-center gap-1
-                    ${activity.type === "term_added" 
-                      ? "bg-[rgba(84,191,4,0.2)] text-[#419703]" 
-                      : activity.type === "received"
-                        ? "bg-[rgba(255,99,71,0.2)] text-[#ff6347]"
-                        : "bg-[rgba(254,202,17,0.2)] text-[#e6b600]"}`}
-                >
-                  {activity.type === "term_added" ? (
-                    <>
-                      <PencilIcon className="h-3 w-3" />
-                      <span>Term</span>
-                    </>
-                  ) : (
-                    <>
-                      {activity.type === "received" ? (
-                        <>
-                          <Skull className="h-3 w-3" />
-                          <span>Caught</span>
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="h-3 w-3" />
-                          <span>Gotcha</span>
-                        </>
-                      )}
-                    </>
-                  )}
-                </Badge>
+                {canCancel ? (
+                  <button
+                    type="button"
+                    className="relative cursor-pointer focus:outline-none"
+                    onClick={cancelConfirmId === activity.id ? undefined : () => handleCancelClick(activity.id)}
+                    aria-label={cancelConfirmId === activity.id ? "Cancel charge confirmation" : "Cancel charge"}
+                  >
+                    <Badge 
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium flex items-center gap-1 transition-all duration-200 
+                        ${cancelConfirmId === activity.id 
+                          ? "hidden" 
+                          : "group hover:bg-[#FDE8E8] hover:text-[#FE0160] bg-[rgba(254,202,17,0.2)] text-[#e6b600] hover:scale-105"}`}
+                    >
+                      <Eye className="h-3 w-3 group-hover:hidden transition-opacity duration-200" />
+                      <XIcon className="h-3 w-3 hidden group-hover:block transition-opacity duration-200" />
+                      <span className="group-hover:hidden transition-opacity duration-200">Gotcha</span>
+                      <span className="hidden group-hover:block transition-opacity duration-200">Cancel</span>
+                    </Badge>
+                  </button>
+                ) : (
+                  <Badge 
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium flex items-center gap-1
+                      ${activity.type === "term_added" 
+                        ? "bg-[rgba(84,191,4,0.2)] text-[#419703]" 
+                        : activity.type === "received"
+                          ? "bg-[rgba(255,99,71,0.2)] text-[#ff6347]"
+                          : "bg-[rgba(254,202,17,0.2)] text-[#e6b600]"}`}
+                  >
+                    {activity.type === "term_added" ? (
+                      <>
+                        <PencilIcon className="h-3 w-3" />
+                        <span>Term</span>
+                      </>
+                    ) : (
+                      <>
+                        {activity.type === "received" ? (
+                          <>
+                            <Skull className="h-3 w-3" />
+                            <span>Caught</span>
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="h-3 w-3" />
+                            <span>Gotcha</span>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
         </div>
+        
+        {/* Confirmation Overlay */}
+        {cancelConfirmId === activity.id && (
+          <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-10 rounded transition-all duration-200 ease-in-out">
+            <div className="p-4 text-center">
+              <p className="text-sm font-medium mb-3">Going soft on corporate jargon now?</p>
+              <div className="flex gap-2 justify-center">
+                <Button 
+                  onClick={() => handleConfirmCancel(activity.id)} 
+                  variant="destructive" 
+                  size="sm" 
+                  className="bg-[#FE0160] hover:bg-[#d9014f] text-white"
+                >
+                  Yeah, refund it
+                </Button>
+                <Button 
+                  onClick={handleCancelCancel} 
+                  variant="secondary" 
+                  size="sm"
+                >
+                  Nevermind
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
