@@ -111,10 +111,7 @@ export default async function DashboardPage() {
         category
       )
     `)
-    .or(
-      `and(charged_user_id.eq.${userData?.id},charged_user_id.is.not.null),` +
-      `and(charging_user_id.eq.${userData?.id},charging_user_id.is.not.null)`
-    )
+    .or(`charged_user_id.eq.${userData?.id},charging_user_id.eq.${userData?.id}`)
     .order('created_at', { ascending: false })
     .limit(10)
 
