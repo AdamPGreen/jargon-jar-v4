@@ -49,7 +49,15 @@ export async function GET(request: NextRequest) {
       const slackIdentity = user.identities?.find(id => id.provider === 'slack_oidc')
       // Explicitly cast identity_data to access provider-specific fields if necessary
       // Adjust casting based on actual data structure if needed
-      const slackIdentityData = slackIdentity?.identity_data as { team_id?: string, provider_id?: string } | undefined
+      const slackIdentityData = slackIdentity?.identity_data as { 
+        team_id?: string;
+        provider_id?: string;
+        email?: string;
+        full_name?: string;
+        name?: string;
+        picture?: string;
+        avatar_url?: string;
+      } | undefined
       const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
 
       if (!slackUserId) {
@@ -103,6 +111,63 @@ export async function GET(request: NextRequest) {
         }
       } else {
          console.log('DIAGNOSTIC (Supabase Auth Callback): User not found in DB or missing workspace ID.')
+         
+         // New code to create user record if one doesn't exist
+         // This helps bridge the gap between OIDC auth and app installation
+         try {
+           console.log('DIAGNOSTIC (Supabase Auth Callback): Attempting to create temporary user record...')
+           
+           // Extract user data from identity
+           const userEmail = user.email || slackIdentityData?.email || ''
+           const displayName = slackIdentityData?.full_name || slackIdentityData?.name || user.email?.split('@')[0] || 'Unknown User'
+           const avatarUrl = slackIdentityData?.picture || slackIdentityData?.avatar_url || ''
+           const teamId = slackIdentityData?.team_id
+           
+           console.log('DIAGNOSTIC (Supabase Auth Callback): Extracted user data:', { 
+             userEmail, 
+             displayName, 
+             hasAvatar: !!avatarUrl,
+             teamId 
+           })
+           
+           if (teamId) {
+             // Check if workspace exists
+             const { data: workspace } = await supabaseAdmin
+               .from('workspaces')
+               .select('id')
+               .eq('slack_id', teamId)
+               .single()
+             
+             if (workspace?.id) {
+               // Create user record linked to existing workspace
+               const userInsertData = {
+                 slack_id: slackUserId,
+                 email: userEmail,
+                 display_name: displayName,
+                 avatar_url: avatarUrl,
+                 workspace_id: workspace.id,
+                 needs_install_completion: true // Flag indicating this user was created via OIDC
+               }
+               
+               const { error: insertError } = await supabaseAdmin
+                 .from('users')
+                 .insert(userInsertData)
+                 
+               if (!insertError) {
+                 console.log('DIAGNOSTIC (Supabase Auth Callback): Created temporary user record')
+                 workspaceExists = true
+               } else {
+                 console.error('DIAGNOSTIC (Supabase Auth Callback): Failed to create user record:', insertError)
+               }
+             } else {
+               console.log('DIAGNOSTIC (Supabase Auth Callback): Team exists but workspace record not found')
+             }
+           } else {
+             console.log('DIAGNOSTIC (Supabase Auth Callback): No team ID available to find workspace')
+           }
+         } catch (createError) {
+           console.error('DIAGNOSTIC (Supabase Auth Callback): Error creating temporary user:', createError)
+         }
       }
 
       // 3. Redirect based on workspace existence
