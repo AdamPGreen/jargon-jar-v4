@@ -23,9 +23,6 @@ type SupabaseActivityItem = {
     id: string
     term: string
   }[]
-  jargon_terms: {
-    category: string | null
-  }[]
 }
 
 export default async function DashboardPage() {
@@ -106,9 +103,6 @@ export default async function DashboardPage() {
       jargon_term:jargon_term_id(
         id,
         term
-      ),
-      jargon_terms:jargon_term_id(
-        category
       )
     `)
     .or(`charged_user_id.eq.${userData?.id},charging_user_id.eq.${userData?.id}`)
@@ -150,7 +144,7 @@ export default async function DashboardPage() {
       },
       amount: item.amount,
       channel_id: item.channel_id,
-      category: item.jargon_terms[0]?.category ?? null,
+      category: null,
       created_at: item.created_at
     }
   }).filter((item): item is NonNullable<typeof item> => item !== null) || []) as ActivityItem[];
