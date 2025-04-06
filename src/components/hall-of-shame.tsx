@@ -107,7 +107,6 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                   tick={{ fontSize: 12 }}
                 />
                 <RechartsTooltip 
-                  cursor={{ fill: 'rgba(253, 219, 62, 0.3)' }}
                   wrapperStyle={{ outline: 'none' }}
                   position={{ y: -12 }}
                   allowEscapeViewBox={{ x: true, y: true }}
