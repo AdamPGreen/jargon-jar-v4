@@ -97,8 +97,12 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
     )
   }
   
-  // Custom tooltip with generic any typing to avoid TypeScript errors
-  const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  // Custom tooltip component
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<{ value: number }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length > 0) {
       const value = payload[0].value as number;
       return (
