@@ -6,13 +6,7 @@ import { differenceInDays, parseISO } from 'date-fns'
 import { StreakCard } from '@/components/streak-card'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSignIcon, ZapIcon, RepeatIcon } from 'lucide-react'
-import dynamic from 'next/dynamic'
-
-// Add this dynamic import
-const HallOfShame = dynamic(
-  () => import('@/components/hall-of-shame').then((mod) => mod.HallOfShame),
-  { ssr: false } 
-)
+import { HallOfShame } from '@/components/hall-of-shame'
 
 // Define types for the data coming from Supabase
 type SupabaseActivityItem = {
