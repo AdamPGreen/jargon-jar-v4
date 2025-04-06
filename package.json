@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.5",
+    "@fontsource/montserrat": "^5.2.5",
     "@radix-ui/react-avatar": "^1.1.3",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-scroll-area": "^1.2.3",
@@ -25,6 +27,7 @@
     "next": "14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "recharts": "^2.15.2",
     "tailwind-merge": "^2.6.0",
     "tw-animate-css": "^1.2.4"
   },

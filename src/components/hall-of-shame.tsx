@@ -13,8 +13,10 @@ interface HallOfShameProps {
 }
 
 export function HallOfShame({ topUsers }: HallOfShameProps) {
-  // Find the maximum charge amount to calculate relative bar widths
-  const maxCharges = Math.max(...topUsers.map(user => user.total_charges))
+  // Find the top user with the highest charges
+  const topUser = topUsers.length > 0 
+    ? topUsers.reduce((max, user) => max.total_charges > user.total_charges ? max : user) 
+    : null;
   
   return (
     <Card>
@@ -33,55 +35,34 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
               <p className="text-xs text-muted-foreground mb-2">
                 Top jargon offenders in your workspace
               </p>
-              {topUsers.map((user, index) => (
-                <div key={user.id} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {index < 3 && (
-                        <div className="flex items-center justify-center w-5 h-5 rounded-full" 
-                             style={{ 
-                               backgroundColor: index === 0 ? 'hsl(var(--primary))' : 
-                                              index === 1 ? 'hsl(var(--primary) / 0.8)' : 
-                                              'hsl(var(--primary) / 0.6)'
-                             }}>
-                          <span className="text-xs font-bold text-white">
-                            {index + 1}
-                          </span>
-                        </div>
-                      )}
-                      {user.avatar_url ? (
-                        <img 
-                          src={user.avatar_url} 
-                          alt={user.display_name} 
-                          className="h-6 w-6 rounded-full"
-                        />
-                      ) : (
-                        <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-                          <span className="text-xs font-medium">
-                            {user.display_name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                      <span className="text-sm font-medium truncate max-w-[120px]" title={user.display_name}>
-                        {user.display_name}
-                      </span>
+              
+              <ul className="space-y-2">
+                {topUsers.map(user => (
+                  <li key={user.id} className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                        {user.avatar_url ? (
+                          <img 
+                            src={user.avatar_url} 
+                            alt={user.display_name} 
+                            className="h-8 w-8 rounded-full"
+                          />
+                        ) : (
+                          <span>{user.display_name.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <span>{user.display_name}</span>
                     </div>
-                    <span className="text-sm font-medium">${user.total_charges.toFixed(2)}</span>
-                  </div>
-                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full" 
-                      style={{ 
-                        width: `${(user.total_charges / maxCharges) * 100}%`,
-                        backgroundColor: index === 0 ? 'hsl(var(--primary))' : 
-                                        index === 1 ? 'hsl(var(--primary) / 0.8)' : 
-                                        index === 2 ? 'hsl(var(--primary) / 0.6)' : 
-                                        'hsl(var(--primary) / 0.4)'
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+                    <span className="font-semibold">${user.total_charges.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+              
+              {topUser && (
+                <p className="text-xs text-muted-foreground italic mt-4">
+                  Maybe we need a jargon intervention for {topUser.display_name}...
+                </p>
+              )}
             </>
           )}
         </div>
