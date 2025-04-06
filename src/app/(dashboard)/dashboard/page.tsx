@@ -160,7 +160,32 @@ export default async function DashboardPage() {
     console.error('Error fetching activity:', activityError);
   }
 
+  // Get recently added jargon terms
+  const { data: recentTerms, error: termsError } = await supabaseAdmin
+    .from('jargon_terms')
+    .select(`
+      id,
+      term,
+      description,
+      default_cost,
+      created_at,
+      created_by,
+      users:created_by(
+        id,
+        display_name,
+        avatar_url
+      )
+    `)
+    .eq('workspace_id', userData?.workspace_id)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  if (termsError) {
+    console.error('Error fetching recent terms:', termsError);
+  }
+
   console.log('Recent Activity Raw:', recentActivity);
+  console.log('Recent Terms Raw:', recentTerms);
 
   // Transform the Supabase nested array results into the format ActivityFeed expects
   const processedActivity = (recentActivity?.map((item) => {
@@ -218,7 +243,39 @@ export default async function DashboardPage() {
     }
   }).filter((item): item is NonNullable<typeof item> => item !== null) || []) as ActivityItem[];
 
-  console.log('Processed Activity:', processedActivity);
+  // Transform recently added terms into activity items
+  const termActivities = (recentTerms?.map((term) => {
+    // Skip terms without a creator
+    if (!term.created_by || !term.users) {
+      return null;
+    }
+
+    // Access the first user in the array
+    const creator = Array.isArray(term.users) ? term.users[0] : term.users;
+
+    return {
+      id: `term-${term.id}`,
+      type: "term_added" as const,
+      charging_user: {
+        id: term.created_by,
+        display_name: creator.display_name,
+        avatar_url: creator.avatar_url
+      },
+      jargon_term: {
+        id: term.id,
+        term: term.term,
+        description: term.description
+      },
+      created_at: term.created_at
+    }
+  }).filter((item): item is NonNullable<typeof item> => item !== null) || []) as ActivityItem[];
+
+  // Combine and sort activities by creation date
+  const allActivities = [...processedActivity, ...termActivities].sort((a, b) => 
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  console.log('Processed Activity:', allActivities);
 
   return (
     <div className="space-y-6">
@@ -298,10 +355,10 @@ export default async function DashboardPage() {
             <div className="p-6">
               <h2 className="text-xl font-semibold">Recent Activity</h2>
               <p className="text-sm text-muted-foreground">
-                Your recent jargon charges and payments.
+                Your recent jargon charges, payments, and term additions.
               </p>
             </div>
-            <ActivityFeed activities={processedActivity} userId={userData?.id} />
+            <ActivityFeed activities={allActivities} userId={userData?.id} />
           </div>
         </div>
       </div>
