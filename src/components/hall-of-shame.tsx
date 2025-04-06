@@ -19,8 +19,8 @@ type JargonUser = {
   display_name: string
   avatar_url: string | null
   total_charges: number
-  jargon_count: number
-  favorite_phrase: string
+  jargon_count?: number
+  favorite_phrase?: string
   rank?: number
 }
 
@@ -137,12 +137,16 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                             <div className="font-medium">
                               Total charged: <span className="font-bold">{user.formatted_charges}</span>
                             </div>
-                            <div>
-                              Jargon count: <span className="font-medium">{user.jargon_count} uses</span>
-                            </div>
-                            <div>
-                              Favorite phrase: <span className="italic">"{user.favorite_phrase}"</span>
-                            </div>
+                            {user.jargon_count !== undefined && (
+                              <div>
+                                Jargon count: <span className="font-medium">{user.jargon_count} uses</span>
+                              </div>
+                            )}
+                            {user.favorite_phrase && (
+                              <div>
+                                Favorite phrase: <span className="italic">"{user.favorite_phrase}"</span>
+                              </div>
+                            )}
                           </div>
                           
                           <div className={cn(
