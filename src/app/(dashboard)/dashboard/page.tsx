@@ -2,6 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { ActivityFeed } from '@/components/activity-feed'
 import type { ActivityItem } from '@/components/activity-feed'
+import { differenceInDays, parseISO } from 'date-fns'
+import { StreakCard } from '@/components/streak-card'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { DollarSignIcon, ZapIcon } from 'lucide-react'
 
 // Define types for the data coming from Supabase
 type SupabaseActivityItem = {
@@ -55,13 +59,56 @@ export default async function DashboardPage() {
 
   console.log('User Data:', { userData, slackUserId });
 
-  // Get user's charges stats
-  const { data: userCharges } = await supabaseAdmin
+  // Get user's charges stats including timestamps
+  const { data: userChargesData, error: userChargesError } = await supabaseAdmin
     .from('charges')
-    .select('amount')
+    .select('amount, created_at')
     .eq('charged_user_id', userData?.id)
+    .order('created_at', { ascending: true }) // Order oldest to newest for record calculation
 
-  const userTotalCharges = userCharges?.reduce((sum, charge) => sum + charge.amount, 0) || 0
+  if (userChargesError) {
+    console.error("Error fetching user charges:", userChargesError);
+  }
+
+  const userCharges = userChargesData || [];
+  const userTotalCharges = userCharges.reduce((sum, charge) => sum + charge.amount, 0);
+
+  // --- Streak Calculation Logic ---
+  let currentStreak = 0;
+  let recordStreak = 0;
+  const now = new Date();
+
+  if (userCharges.length === 0) {
+    // If no charges, streak is potentially since account creation, but let's default to 0 or handle based on user creation date if available
+    // For now, let's assume a long streak if they have *never* been charged.
+    // We might need user.created_at for a more accurate "since joining" streak.
+    // Let's set a high default like 99 for now, assuming no charges means they are doing great.
+     // Or perhaps just 0 is less confusing? Let's start with 0.
+    currentStreak = 0; // Or calculate differenceInDays(now, parseISO(user.created_at)) if available
+    recordStreak = 0;
+  } else {
+    const chargeDates = userCharges.map(charge => parseISO(charge.created_at));
+    
+    // Current streak: days since the *last* charge
+    const lastChargeDate = chargeDates[chargeDates.length - 1];
+    currentStreak = differenceInDays(now, lastChargeDate);
+
+    // Record streak: find the largest gap between consecutive charges, 
+    // and also consider the gap from the first charge until now (if only one charge),
+    // or the gap from the last charge until now (which is the current streak).
+    let maxGap = 0;
+    if (chargeDates.length > 1) {
+      for (let i = 1; i < chargeDates.length; i++) {
+        const gap = differenceInDays(chargeDates[i], chargeDates[i - 1]);
+        if (gap > maxGap) {
+          maxGap = gap;
+        }
+      }
+    }
+    // The record streak is the maximum of the largest gap found and the current streak.
+    recordStreak = Math.max(maxGap, currentStreak); 
+  }
+  // --- End Streak Calculation ---
 
   // Get workspace total charges
   const { data: workspaceCharges } = await supabaseAdmin
@@ -185,56 +232,63 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column - Main Content */}
         <div className="lg:col-span-8 space-y-6">
-          <div className="rounded-lg border bg-card p-6 shadow-sm">
-            <div className="text-sm font-medium text-muted-foreground">
-              Workspace Total
-            </div>
-            <div className="mt-2 text-3xl font-bold">
-              ${workspaceTotalCharges.toFixed(2)}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Total charges across workspace
-            </div>
-          </div>
+          {/* Workspace Total Card - Updated to use Shadcn Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Workspace Total
+              </CardTitle>
+              <DollarSignIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                ${workspaceTotalCharges.toFixed(2)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total charges across workspace
+              </p>
+            </CardContent>
+          </Card>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <div className="text-sm font-medium text-muted-foreground">
-                Your Total Charges
-              </div>
-              <div className="mt-2 text-3xl font-bold">
-                ${userTotalCharges.toFixed(2)}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Total amount you've been charged
-              </div>
-            </div>
+            {/* Your Total Charges Card - Updated to use Shadcn Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Your Total Charges
+                </CardTitle>
+                <DollarSignIcon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  ${userTotalCharges.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Total amount you've been charged
+                </p>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <div className="text-sm font-medium text-muted-foreground">
-                Charges Made
-              </div>
-              <div className="mt-2 text-3xl font-bold">
-                {chargesMadeCount || 0}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Times you've caught others
-              </div>
-            </div>
+            {/* Charges Made Card - Updated to use Shadcn Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Charges Made
+                </CardTitle>
+                <ZapIcon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {chargesMadeCount || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Times you've caught others
+                </p>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <div className="text-sm font-medium text-muted-foreground">
-                Jargon Ratio
-              </div>
-              <div className="mt-2 text-3xl font-bold">
-                {chargesMadeCount && userCharges?.length 
-                  ? (chargesMadeCount / (userCharges.length || 1)).toFixed(2)
-                  : 'N/A'}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Higher is better!
-              </div>
-            </div>
+            {/* Streak Card - Already using Shadcn Card internally */}
+            <StreakCard currentStreak={currentStreak} recordStreak={recordStreak} />
           </div>
         </div>
 
