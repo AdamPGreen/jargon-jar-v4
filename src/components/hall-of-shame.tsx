@@ -1,5 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrophyIcon } from "lucide-react"
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer, 
+  LabelList 
+} from 'recharts';
 
 type JargonUser = {
   id: string
@@ -13,11 +22,17 @@ interface HallOfShameProps {
 }
 
 export function HallOfShame({ topUsers }: HallOfShameProps) {
-  // Find the top user with the highest charges
+  // Find the top user with the highest charges - This might not be needed anymore depending on final design
   const topUser = topUsers.length > 0 
     ? topUsers.reduce((max, user) => max.total_charges > user.total_charges ? max : user) 
     : null;
   
+  // Format charges for display
+  const formattedTopUsers = topUsers.map(user => ({
+    ...user,
+    formatted_charges: `$${user.total_charges.toFixed(2)}`
+  }));
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -28,42 +43,63 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {topUsers.length === 0 ? (
+          {formattedTopUsers.length === 0 ? (
             <p className="text-sm text-muted-foreground">No jargon charges yet</p>
           ) : (
-            <>
-              <p className="text-xs text-muted-foreground mb-2">
-                Top jargon offenders in your workspace
-              </p>
-              
-              <ul className="space-y-2">
-                {topUsers.map(user => (
-                  <li key={user.id} className="flex items-center justify-between border-b pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                        {user.avatar_url ? (
-                          <img 
-                            src={user.avatar_url} 
-                            alt={user.display_name} 
-                            className="h-8 w-8 rounded-full"
-                          />
-                        ) : (
-                          <span>{user.display_name.charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <span>{user.display_name}</span>
-                    </div>
-                    <span className="font-semibold">${user.total_charges.toFixed(2)}</span>
-                  </li>
-                ))}
-              </ul>
-              
-              {topUser && (
-                <p className="text-xs text-muted-foreground italic mt-4">
-                  Maybe we need a jargon intervention for {topUser.display_name}...
-                </p>
-              )}
-            </>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart 
+                layout="vertical" 
+                data={formattedTopUsers}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <XAxis type="number" hide={true} /> 
+                <YAxis 
+                  dataKey="display_name" 
+                  type="category" 
+                  axisLine={false} 
+                  tickLine={false}
+                  width={80} 
+                  tick={{ fontSize: 12 }}
+                />
+                <RechartsTooltip 
+                  cursor={{ fill: 'transparent' }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="rounded-lg border bg-background p-2 shadow-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col">
+                              <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                User
+                              </span>
+                              <span className="font-bold text-muted-foreground">
+                                {payload[0].payload.display_name}
+                              </span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                Charges
+                              </span>
+                              <span className="font-bold">
+                                {payload[0].payload.formatted_charges}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="total_charges" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
+                  <LabelList 
+                    dataKey="formatted_charges" 
+                    position="right" 
+                    style={{ fill: 'hsl(var(--foreground))', fontSize: 12 }} 
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
       </CardContent>
