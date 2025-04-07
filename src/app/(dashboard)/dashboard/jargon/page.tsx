@@ -121,11 +121,11 @@ export default async function JargonPage() {
             <div className="divide-y">
               {displayTerms.map((term: JargonTerm) => (
                 <div key={term.id} className="p-4">
-                  <div className="flex justify-between mb-1">
+                  <div className="mb-1">
                     <h3 className="font-medium">{term.term}</h3>
-                    <span className="font-bold">${term.default_cost}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{term.description}</p>
+                  <p className="text-sm text-muted-foreground mb-1">{term.description}</p>
+                  <p className="font-bold">${term.default_cost}</p>
                   {term.creator && term.creator.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-2">
                       Added by {term.creator[0]?.display_name || 'Unknown'} 
