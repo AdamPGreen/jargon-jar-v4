@@ -500,14 +500,14 @@ export default async function DashboardPage() {
 
         {/* Right Column - Activity Feed */}
         <div className="lg:col-span-4">
-          <div className="rounded-lg border shadow-sm flex flex-col h-full">
+          <div className="rounded-lg border shadow-sm">
             <div className="p-6 pb-3">
               <h2 className="text-xl font-semibold">Recent Activity</h2>
               <p className="text-sm text-muted-foreground">
                 Your recent jargon charges, payments, and term additions.
               </p>
             </div>
-            <div className="flex-1">
+            <div>
               <ActivityFeed activities={allActivities} userId={userData?.id} />
             </div>
           </div>
