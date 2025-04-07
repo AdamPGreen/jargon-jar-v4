@@ -19,7 +19,7 @@ export function CostlyTermsLeaderboard({ workspaceId, timePeriod }: CostlyTermsL
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b">
         <CardTitle className="text-xl font-semibold">
           Most Expensive Jargon Terms
         </CardTitle>
