@@ -1,79 +1,155 @@
-import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { HallOfShame } from '@/components/hall-of-shame'
+"use client"
 
-// Define types for better type safety
-type LeaderboardEntry = {
-  charged_user_id: string
-  users: {
-    display_name: string
-    avatar_url: string | null
-  }[]
-  total_charges: number
-  jargon_count: number
-  favorite_phrase: string
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { TrophyIcon, DollarSignIcon, RepeatIcon, ZapIcon, TrendingUpIcon } from "lucide-react"
+import { useState } from "react"
 
-export default async function LeaderboardPage() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  // Find the slack_oidc identity to get the actual Slack user ID
-  const slackIdentity = user?.identities?.find(id => id.provider === 'slack_oidc')
-  const slackIdentityData = slackIdentity?.identity_data as { provider_id?: string } | undefined
-  
-  // Get the Slack ID either from the identity's id field or provider_id in identity_data
-  const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
+// Filter time periods
+type TimePeriod = "all" | "month" | "week"
 
-  // Create an admin client to bypass RLS
-  const supabaseAdmin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-
-  // Get user's workspace ID using the admin client
-  const { data: userData } = await supabaseAdmin
-    .from('users')
-    .select('workspace_id')
-    .eq('slack_id', slackUserId)
-    .single()
-
-  // Get top 10 charged users in the workspace using admin client
-  const { data: leaderboard } = await supabaseAdmin
-    .rpc('get_top_jargon_users', { workspace_id_param: userData?.workspace_id })
-    .limit(10)
-
-  // Add logging here
-  console.log('[LeaderboardPage] Workspace ID:', userData?.workspace_id);
-  console.log('[LeaderboardPage] Raw Leaderboard Data:', leaderboard);
-
-  // Transform the data for the HallOfShame component
-  const topUsers = leaderboard?.map((entry: LeaderboardEntry) => ({
-    id: entry.charged_user_id,
-    display_name: entry.users[0].display_name,
-    avatar_url: entry.users[0].avatar_url,
-    total_charges: entry.total_charges,
-    jargon_count: entry.jargon_count,
-    favorite_phrase: entry.favorite_phrase
-  })) || []
+export default function LeaderboardPage() {
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all")
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Leaderboard</h1>
-        <p className="text-muted-foreground">
-          The Jargon Jar hall of shame - who's been caught the most?
-        </p>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Hall of Shame</h1>
+          <p className="text-muted-foreground">
+            Who's been caught using the most corporate jargon?
+          </p>
+        </div>
+
+        {/* Time period filter */}
+        <div className="flex space-x-2">
+          <Button
+            variant={timePeriod === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTimePeriod("all")}
+            className={timePeriod === "all" ? "bg-[#feca11] hover:bg-[#e5b400] text-gray-900" : ""}
+          >
+            All Time
+          </Button>
+          <Button
+            variant={timePeriod === "month" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTimePeriod("month")}
+            className={timePeriod === "month" ? "bg-[#feca11] hover:bg-[#e5b400] text-gray-900" : ""}
+          >
+            This Month
+          </Button>
+          <Button
+            variant={timePeriod === "week" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTimePeriod("week")}
+            className={timePeriod === "week" ? "bg-[#feca11] hover:bg-[#e5b400] text-gray-900" : ""}
+          >
+            This Week
+          </Button>
+        </div>
       </div>
 
-      <div className="rounded-lg border shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-2">Top Jargon Offenders</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Based on the total amount charged for using jargon.
-          </p>
-          <HallOfShame topUsers={topUsers} />
-      </div>
+      {/* Main tabs interface */}
+      <Tabs defaultValue="top-spenders" className="w-full">
+        <TabsList className="grid grid-cols-2 md:grid-cols-4 mb-4">
+          <TabsTrigger value="top-spenders" className="flex items-center gap-2">
+            <DollarSignIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Top Spenders</span>
+            <span className="sm:hidden">Spenders</span>
+          </TabsTrigger>
+          <TabsTrigger value="frequent-offenders" className="flex items-center gap-2">
+            <RepeatIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Frequent Offenders</span>
+            <span className="sm:hidden">Frequent</span>
+          </TabsTrigger>
+          <TabsTrigger value="costly-terms" className="flex items-center gap-2">
+            <ZapIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Costly Terms</span>
+            <span className="sm:hidden">Costly</span>
+          </TabsTrigger>
+          <TabsTrigger value="overused-terms" className="flex items-center gap-2">
+            <TrendingUpIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Overused Terms</span>
+            <span className="sm:hidden">Overused</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab content */}
+        <TabsContent value="top-spenders">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xl font-semibold">
+                Top Spenders
+              </CardTitle>
+              <TrophyIcon className="h-5 w-5 text-[#feca11]" />
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="h-[400px] flex items-center justify-center border-t">
+                <p className="text-muted-foreground text-sm italic">
+                  User data will be displayed here
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="frequent-offenders">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xl font-semibold">
+                Frequent Offenders
+              </CardTitle>
+              <RepeatIcon className="h-5 w-5 text-[#feca11]" />
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="h-[400px] flex items-center justify-center border-t">
+                <p className="text-muted-foreground text-sm italic">
+                  User frequency data will be displayed here
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="costly-terms">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xl font-semibold">
+                Most Expensive Jargon Terms
+              </CardTitle>
+              <ZapIcon className="h-5 w-5 text-[#feca11]" />
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="h-[400px] flex items-center justify-center border-t">
+                <p className="text-muted-foreground text-sm italic">
+                  Jargon term data will be displayed here
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="overused-terms">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xl font-semibold">
+                Most Frequently Used Jargon
+              </CardTitle>
+              <TrendingUpIcon className="h-5 w-5 text-[#feca11]" />
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="h-[400px] flex items-center justify-center border-t">
+                <p className="text-muted-foreground text-sm italic">
+                  Jargon frequency data will be displayed here
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 } 
