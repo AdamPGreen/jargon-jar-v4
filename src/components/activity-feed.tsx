@@ -60,7 +60,7 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
     }
     
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="h-full flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center justify-center py-6 px-4 text-[#9a9da5] font-inter">
           <p className="text-sm">{message}</p>
         </div>
@@ -273,7 +273,7 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
     const displayedItems = items.slice(0, visibleItems)
 
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col flex-1">
         <div className="divide-y divide-gray-100 flex-1">
           {displayedItems.map((activity, index) => (
             <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
@@ -282,7 +282,7 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
           ))}
         </div>
         {hasMore && (
-          <div className="p-4 flex justify-center border-t border-gray-100">
+          <div className="p-4 flex justify-center border-t border-gray-100 mt-auto">
             <Button
               variant="ghost"
               className="text-sm text-muted-foreground hover:text-foreground"
@@ -326,20 +326,20 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
           </TabsTrigger>
         </TabsList>
         
-        <div className="bg-white rounded-b-lg overflow-hidden flex-1">
-          <TabsContent value="all" className="m-0 h-full">
+        <div className="bg-white rounded-b-lg flex-1 flex flex-col">
+          <TabsContent value="all" className="m-0 h-full flex-1 flex flex-col">
             {activities.length > 0 ? renderActivityList(activities) : renderEmptyState("all")}
           </TabsContent>
           
-          <TabsContent value="received" className="m-0 h-full">
+          <TabsContent value="received" className="m-0 h-full flex-1 flex flex-col">
             {receivedActivities.length > 0 ? renderActivityList(receivedActivities) : renderEmptyState("received")}
           </TabsContent>
           
-          <TabsContent value="made" className="m-0 h-full">
+          <TabsContent value="made" className="m-0 h-full flex-1 flex flex-col">
             {madeActivities.length > 0 ? renderActivityList(madeActivities) : renderEmptyState("made")}
           </TabsContent>
           
-          <TabsContent value="terms" className="m-0 h-full">
+          <TabsContent value="terms" className="m-0 h-full flex-1 flex flex-col">
             {termAddedActivities.length > 0 ? renderActivityList(termAddedActivities) : renderEmptyState("terms")}
           </TabsContent>
         </div>
