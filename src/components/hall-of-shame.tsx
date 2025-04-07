@@ -73,7 +73,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart 
                 data={formattedTopUsers}
-                margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                 barCategoryGap="20%"
                 style={{ cursor: 'pointer' }}
               >
@@ -90,7 +90,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                       <g transform={`translate(${x},${y})`}>
                         <foreignObject 
                           x={-12} 
-                          y={-30} 
+                          y={8} 
                           width={24} 
                           height={24}
                         >
@@ -102,7 +102,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                         <text 
                           x={0} 
                           y={0} 
-                          dy={16} 
+                          dy={46} 
                           textAnchor="middle"
                           fontSize={12}
                           fontWeight="500"
@@ -113,7 +113,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                       </g>
                     );
                   }}
-                  height={60}
+                  height={80}
                 />
                 <YAxis 
                   type="number" 
