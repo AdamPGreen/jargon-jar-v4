@@ -75,7 +75,7 @@ export default async function Home({
                   className="bg-[#FF5500] hover:bg-[#FF5500]/90 text-white text-base font-bold h-12 px-8 order-2 md:order-1"
                 >
                   <a href="/api/auth/signin">
-                    Sign in with Slack
+                    Sign in
                   </a>
                 </Button>
                 
@@ -86,7 +86,7 @@ export default async function Home({
                 >
                   <img
                     alt="Add to Slack"
-                    height="40"
+                    height="48"
                     width="139"
                     src="https://platform.slack-edge.com/img/add_to_slack.png"
                     srcSet="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x"
