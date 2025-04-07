@@ -74,6 +74,8 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
               <BarChart 
                 data={formattedTopUsers}
                 margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                barCategoryGap="20%"
+                style={{ cursor: 'pointer' }}
               >
                 <XAxis 
                   dataKey="display_name" 
@@ -110,6 +112,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                   wrapperStyle={{ outline: 'none' }}
                   position={{ y: -12 }}
                   allowEscapeViewBox={{ x: true, y: true }}
+                  cursor={{ fill: 'transparent' }}
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const user = payload[0].payload as JargonUser & { 
@@ -164,6 +167,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                   dataKey="total_charges" 
                   fill="#FDDB3E" 
                   radius={[4, 4, 0, 0]}
+                  activeBar={{ fill: "#feca11", stroke: "hsl(var(--card))", strokeWidth: 2 }}
                 >
                   <LabelList 
                     dataKey="formatted_charges" 
