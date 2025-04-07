@@ -9,26 +9,10 @@ import {
   YAxis, 
   Tooltip as RechartsTooltip, 
   ResponsiveContainer, 
-  LabelList,
-  Rectangle,
+  LabelList 
 } from 'recharts';
-import type { RectangleProps } from 'recharts';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-
-// Custom bar component that doesn't show hover effects
-type CustomBarProps = RectangleProps & {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  fill?: string;
-};
-
-const CustomBar = (props: CustomBarProps) => {
-  const { x, y, width, height, fill } = props;
-  return <Rectangle x={x} y={y} width={width} height={height} fill={fill} radius={[4, 4, 0, 0]} />;
-};
 
 type JargonUser = {
   id: string
@@ -90,26 +74,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
               <BarChart 
                 data={formattedTopUsers}
                 margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                onMouseMove={(e) => {
-                  // Make sure the tooltip-cursor stays transparent
-                  const cursor = document.querySelector('.recharts-tooltip-cursor');
-                  if (cursor) {
-                    cursor.setAttribute('fill', 'transparent');
-                  }
-                }}
               >
-                <defs>
-                  <style>
-                    {`
-                      .recharts-rectangle.recharts-bar-rectangle:hover {
-                        fill-opacity: 1;
-                      }
-                      .recharts-tooltip-cursor {
-                        fill: transparent !important;
-                      }
-                    `}
-                  </style>
-                </defs>
                 <XAxis 
                   dataKey="display_name" 
                   type="category" 
@@ -199,13 +164,6 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                   dataKey="total_charges" 
                   fill="#FDDB3E" 
                   radius={[4, 4, 0, 0]}
-                  isAnimationActive={true}
-                  onMouseOver={(data) => {
-                    // Prevent default hover behavior
-                    document.querySelector('.recharts-tooltip-cursor')?.setAttribute('fill', 'transparent');
-                  }}
-                  className="!fill-opacity-100"
-                  shape={<CustomBar />}
                 >
                   <LabelList 
                     dataKey="formatted_charges" 
