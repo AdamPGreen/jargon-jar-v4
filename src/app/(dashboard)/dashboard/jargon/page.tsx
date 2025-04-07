@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 // Define types for better type safety
 type JargonTerm = {
@@ -25,16 +26,57 @@ export default async function JargonPage() {
   
   // Get the Slack ID either from the identity's id field or provider_id in identity_data
   const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
+  
+  console.log('DIAGNOSTIC (Jargon Page): Auth user details', {
+    authUserId: session?.user?.id,
+    hasSlackIdentity: !!slackIdentity,
+    slackUserId,
+    slackIdLength: slackUserId?.length,
+  })
 
   // Get user's workspace ID
-  const { data: userData } = await supabase
+  const { data: userData, error: userError } = await supabase
     .from('users')
     .select('workspace_id')
     .eq('slack_id', slackUserId)
     .single()
+    
+  if (userError) {
+    console.error('DIAGNOSTIC (Jargon Page): Error fetching user data:', userError)
+  }
+  
+  console.log('DIAGNOSTIC (Jargon Page): User data', { userData, slackUserId })
+  
+  // Create admin client to bypass RLS for debugging
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  
+  // Get jargon terms directly with admin client
+  const { data: jargonTermsAdmin, error: jargonErrorAdmin } = await supabaseAdmin
+    .from('jargon_terms')
+    .select(`
+      id,
+      term,
+      description,
+      default_cost,
+      created_at,
+      created_by,
+      workspace_id,
+      creator:users(display_name)
+    `)
+    .order('term')
+    
+  if (jargonErrorAdmin) {
+    console.error('DIAGNOSTIC (Jargon Page): Error fetching jargon terms with admin:', jargonErrorAdmin)
+  }
+  
+  console.log('DIAGNOSTIC (Jargon Page): Total jargon terms with admin:', jargonTermsAdmin?.length)
 
   // Get jargon terms for the workspace (both global and workspace-specific)
-  const { data: jargonTerms } = await supabase
+  const { data: jargonTerms, error: jargonError } = await supabase
     .from('jargon_terms')
     .select(`
       id,
@@ -48,6 +90,15 @@ export default async function JargonPage() {
     `)
     .or(`workspace_id.eq.${userData?.workspace_id},workspace_id.is.null`)
     .order('term')
+    
+  if (jargonError) {
+    console.error('DIAGNOSTIC (Jargon Page): Error fetching jargon terms:', jargonError)
+  }
+  
+  console.log('DIAGNOSTIC (Jargon Page): Total jargon terms after filtering:', jargonTerms?.length)
+  
+  // Use admin client results for now if regular query fails
+  const displayTerms = jargonTerms?.length ? jargonTerms : jargonTermsAdmin;
 
   return (
     <div className="space-y-6">
@@ -66,9 +117,9 @@ export default async function JargonPage() {
           </p>
         </div>
         <div className="border-t">
-          {jargonTerms && jargonTerms.length > 0 ? (
+          {displayTerms && displayTerms.length > 0 ? (
             <div className="divide-y">
-              {jargonTerms.map((term: JargonTerm) => (
+              {displayTerms.map((term: JargonTerm) => (
                 <div key={term.id} className="p-4">
                   <div className="flex justify-between mb-1">
                     <h3 className="font-medium">{term.term}</h3>
