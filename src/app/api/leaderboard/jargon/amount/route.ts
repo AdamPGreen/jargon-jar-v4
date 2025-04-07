@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const workspaceId = url.searchParams.get('workspace_id')
   const dateFrom = url.searchParams.get('date_from')
   const limit = Number.parseInt(url.searchParams.get('limit') || '10', 10)
+  const timePeriod = url.searchParams.get('time_period') || 'all'
   
   // Validate parameters
   if (!workspaceId) {
@@ -21,8 +22,8 @@ export async function GET(request: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
     
-    // Build the query
-    const query = supabaseAdmin
+    // Build the query - add time_period filter if needed
+    let query = supabaseAdmin
       .from('jargon_words')
       .select(`
         id,
@@ -31,7 +32,19 @@ export async function GET(request: Request) {
         charges:charges(count)
       `)
       .eq('workspace_id', workspaceId)
-      .order('amount_cents', { ascending: false })
+    
+    // Add time period filter if specified
+    if (timePeriod === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      query = query.gte('charges.created_at', weekAgo.toISOString());
+    } else if (timePeriod === 'month') {
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      query = query.gte('charges.created_at', monthAgo.toISOString());
+    }
+    
+    query = query.order('amount_cents', { ascending: false })
       .limit(limit)
     
     // Mock response for development

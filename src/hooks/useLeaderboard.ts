@@ -113,6 +113,7 @@ export function useUserFrequencyLeaderboard({
       const dateFilter = getDateFilter(timePeriod);
       const params = new URLSearchParams({
         workspace_id: workspaceId,
+        time_period: timePeriod,
         limit: limit.toString()
       });
       
@@ -161,6 +162,7 @@ export function useJargonAmountLeaderboard({
       const dateFilter = getDateFilter(timePeriod);
       const params = new URLSearchParams({
         workspace_id: workspaceId,
+        time_period: timePeriod,
         limit: limit.toString()
       });
       
@@ -209,6 +211,7 @@ export function useJargonFrequencyLeaderboard({
       const dateFilter = getDateFilter(timePeriod);
       const params = new URLSearchParams({
         workspace_id: workspaceId,
+        time_period: timePeriod,
         limit: limit.toString()
       });
       
