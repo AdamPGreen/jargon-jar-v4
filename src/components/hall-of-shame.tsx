@@ -73,7 +73,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart 
                 data={formattedTopUsers}
-                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
                 barCategoryGap="20%"
                 style={{ cursor: 'pointer' }}
               >
@@ -84,15 +84,28 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                   tickLine={false}
                   tick={(props) => {
                     const { x, y, payload } = props;
+                    const user = formattedTopUsers.find(u => u.display_name === payload.value);
+                    
                     return (
                       <g transform={`translate(${x},${y})`}>
+                        <foreignObject 
+                          x={-12} 
+                          y={-30} 
+                          width={24} 
+                          height={24}
+                        >
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={user?.avatar_url || undefined} alt={payload.value} />
+                            <AvatarFallback>{getInitials(payload.value)}</AvatarFallback>
+                          </Avatar>
+                        </foreignObject>
                         <text 
                           x={0} 
                           y={0} 
                           dy={16} 
-                          textAnchor="end" 
-                          transform="rotate(-45)"
+                          textAnchor="middle"
                           fontSize={12}
+                          fontWeight="500"
                           fill="currentColor"
                         >
                           {payload.value}
