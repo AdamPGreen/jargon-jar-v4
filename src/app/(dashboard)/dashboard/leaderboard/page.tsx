@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { HallOfShame } from '@/components/hall-of-shame'
 
 // Define types for better type safety
 type LeaderboardEntry = {
@@ -7,8 +8,10 @@ type LeaderboardEntry = {
   users: {
     display_name: string
     avatar_url: string | null
-  }[] // users is an array since it's from a join
-  count: number
+  }[]
+  total_charges: number
+  jargon_count: number
+  favorite_phrase: string
 }
 
 export default async function LeaderboardPage() {
@@ -38,18 +41,18 @@ export default async function LeaderboardPage() {
 
   // Get top 10 charged users in the workspace using admin client
   const { data: leaderboard } = await supabaseAdmin
-    .from('charges')
-    .select(`
-      charged_user_id,
-      users:charged_user_id (
-        display_name,
-        avatar_url
-      ),
-      count
-    `)
-    .eq('workspace_id', userData?.workspace_id)
-    .order('count', { ascending: false })
+    .rpc('get_top_jargon_users', { workspace_id_param: userData?.workspace_id })
     .limit(10)
+
+  // Transform the data for the HallOfShame component
+  const topUsers = leaderboard?.map((entry: LeaderboardEntry) => ({
+    id: entry.charged_user_id,
+    display_name: entry.users[0].display_name,
+    avatar_url: entry.users[0].avatar_url,
+    total_charges: entry.total_charges,
+    jargon_count: entry.jargon_count,
+    favorite_phrase: entry.favorite_phrase
+  })) || []
 
   return (
     <div className="space-y-6">
@@ -60,55 +63,17 @@ export default async function LeaderboardPage() {
         </p>
       </div>
 
-      {leaderboard && leaderboard.length > 0 ? (
-        <div className="rounded-lg border shadow-sm">
-          <div className="p-6">
-            <h2 className="text-xl font-semibold">Top Jargon Offenders</h2>
-            <p className="text-sm text-muted-foreground">
-              Based on the number of times caught using jargon.
-            </p>
-          </div>
-          <div className="border-t">
-            <div className="divide-y">
-              {leaderboard.map((entry: LeaderboardEntry, index: number) => (
-                <div 
-                  key={entry.charged_user_id} 
-                  className="flex items-center justify-between p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-center font-medium">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium">
-                        {entry.users?.[0]?.display_name || 'Unknown'}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="font-bold">{entry.count} charges</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="rounded-lg border shadow-sm">
+        <div className="p-6">
+          <h2 className="text-xl font-semibold">Top Jargon Offenders</h2>
+          <p className="text-sm text-muted-foreground">
+            Based on the total amount charged for using jargon.
+          </p>
         </div>
-      ) : (
-        <div className="rounded-lg border shadow-sm">
-          <div className="p-6">
-            <h2 className="text-xl font-semibold">Top Jargon Offenders</h2>
-            <p className="text-sm text-muted-foreground">
-              Based on the number of times caught using jargon.
-            </p>
-          </div>
-          <div className="p-6 border-t">
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No charges have been made yet.</p>
-              <p className="mt-1">Start catching your colleagues using jargon!</p>
-            </div>
-          </div>
+        <div className="p-6 border-t">
+          <HallOfShame topUsers={topUsers} />
         </div>
-      )}
+      </div>
     </div>
   )
 } 
