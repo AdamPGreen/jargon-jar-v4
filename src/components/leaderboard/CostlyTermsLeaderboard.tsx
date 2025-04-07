@@ -19,7 +19,7 @@ export function CostlyTermsLeaderboard({ workspaceId, timePeriod }: CostlyTermsL
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-8 border-b">
         <CardTitle className="text-xl font-semibold">
           Most Expensive Jargon Terms
         </CardTitle>
@@ -27,17 +27,17 @@ export function CostlyTermsLeaderboard({ workspaceId, timePeriod }: CostlyTermsL
       </CardHeader>
       <CardContent className="pt-6">
         {error ? (
-          <div className="h-[400px] flex items-center justify-center border-t">
+          <div className="h-[400px] flex items-center justify-center">
             <p className="text-red-500">Failed to load leaderboard data</p>
           </div>
         ) : isLoading ? (
           <LeaderboardSkeleton />
         ) : data.length === 0 ? (
-          <div className="h-[400px] flex items-center justify-center border-t">
+          <div className="h-[400px] flex items-center justify-center">
             <p className="text-muted-foreground">No data available for this time period</p>
           </div>
         ) : (
-          <div className="h-[400px] overflow-auto border-t">
+          <div className="h-[400px] overflow-auto">
             <table className="w-full">
               <thead className="sticky top-0 bg-background border-b">
                 <tr>
@@ -101,7 +101,7 @@ function JargonRow({ jargon, rank }: JargonRowProps) {
 
 function LeaderboardSkeleton() {
   return (
-    <div className="h-[400px] border-t pt-6 space-y-6">
+    <div className="h-[400px] pt-6 space-y-6">
       <div className="space-y-2">
         <Skeleton className="h-4 w-full max-w-[300px]" />
         <Skeleton className="h-4 w-full max-w-[250px]" />
