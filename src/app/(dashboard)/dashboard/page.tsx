@@ -6,6 +6,7 @@ import { differenceInDays, parseISO } from 'date-fns'
 import { StreakCard } from '@/components/streak-card'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSignIcon, ZapIcon, RepeatIcon } from 'lucide-react'
+import { HallOfShame } from '@/components/hall-of-shame'
 
 // Define types for the data coming from Supabase
 type SupabaseActivityItem = {
@@ -159,6 +160,94 @@ export default async function DashboardPage() {
     .from('charges')
     .select('*', { count: 'exact', head: true })
     .eq('charging_user_id', userData?.id)
+
+  // Get top 5 worst jargon users in the workspace
+  const { data: topJargonUsers, error: topUsersError } = await supabaseAdmin
+    .from('charges')
+    .select(`
+      charged_user:charged_user_id(
+        id,
+        display_name,
+        avatar_url
+      ),
+      amount
+    `)
+    .eq('workspace_id', userData?.workspace_id)
+    .order('created_at', { ascending: false })
+
+  if (topUsersError) {
+    console.error('Error fetching top jargon users:', topUsersError);
+  }
+
+  // Process the top jargon users data
+  const processedTopUsers = topJargonUsers?.reduce((acc, charge) => {
+    // Type assertion to handle the nested structure
+    const typedCharge = charge as unknown as {
+      charged_user: {
+        id: string;
+        display_name: string;
+        avatar_url: string | null;
+      };
+      amount: number;
+    };
+    
+    if (!typedCharge.charged_user) return acc;
+    
+    const userId = typedCharge.charged_user.id;
+    if (!acc[userId]) {
+      acc[userId] = {
+        id: userId,
+        display_name: typedCharge.charged_user.display_name,
+        avatar_url: typedCharge.charged_user.avatar_url,
+        total_charges: 0
+      };
+    }
+    
+    acc[userId].total_charges += typedCharge.amount;
+    return acc;
+  }, {} as Record<string, { id: string; display_name: string; avatar_url: string | null; total_charges: number }>);
+
+  // Get jargon counts for top users
+  const userIds = Object.keys(processedTopUsers || {});
+  const { data: jargonCounts, error: jargonCountsError } = await supabaseAdmin
+    .from('user_jargon_counts')
+    .select('charged_user_id, jargon_count')
+    .in('charged_user_id', userIds);
+
+  if (jargonCountsError) {
+    console.error('Error fetching jargon counts:', jargonCountsError);
+  }
+
+  // Get favorite phrases for top users
+  const { data: favoriteJargon, error: favoriteJargonError } = await supabaseAdmin
+    .from('user_favorite_jargon')
+    .select('charged_user_id, favorite_phrase')
+    .in('charged_user_id', userIds);
+
+  if (favoriteJargonError) {
+    console.error('Error fetching favorite jargon:', favoriteJargonError);
+  }
+
+  // Create maps for easy lookup
+  const jargonCountMap = (jargonCounts || []).reduce((acc, item) => {
+    acc[item.charged_user_id] = item.jargon_count;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const favoriteJargonMap = (favoriteJargon || []).reduce((acc, item) => {
+    acc[item.charged_user_id] = item.favorite_phrase;
+    return acc;
+  }, {} as Record<string, string>);
+
+  // Convert to array and sort by total charges (descending)
+  const topUsers = Object.values(processedTopUsers || {})
+    .map(user => ({
+      ...user,
+      jargon_count: jargonCountMap[user.id] || 0,
+      favorite_phrase: favoriteJargonMap[user.id] || 'None yet'
+    }))
+    .sort((a, b) => b.total_charges - a.total_charges)
+    .slice(0, 5);
 
   // Get recent activity (both charges made and received)
   console.log('Query Parameters:', {
@@ -404,18 +493,23 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Hall of Shame Card */}
+          <HallOfShame topUsers={topUsers} />
         </div>
 
         {/* Right Column - Activity Feed */}
         <div className="lg:col-span-4">
-          <div className="rounded-lg border shadow-sm h-full">
+          <div className="rounded-lg border shadow-sm flex flex-col h-full">
             <div className="p-6">
               <h2 className="text-xl font-semibold">Recent Activity</h2>
               <p className="text-sm text-muted-foreground">
                 Your recent jargon charges, payments, and term additions.
               </p>
             </div>
-            <ActivityFeed activities={allActivities} userId={userData?.id} />
+            <div className="flex-1 flex flex-col">
+              <ActivityFeed activities={allActivities} userId={userData?.id} />
+            </div>
           </div>
         </div>
       </div>
