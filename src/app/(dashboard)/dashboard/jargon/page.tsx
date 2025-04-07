@@ -8,7 +8,8 @@ type JargonTerm = {
   default_cost: number
   created_at: string
   created_by: string | null
-  users: { display_name: string }[] | null
+  workspace_id: string | null
+  creator: { display_name: string }[] | null
 }
 
 export default async function JargonPage() {
@@ -32,9 +33,8 @@ export default async function JargonPage() {
       default_cost,
       created_at,
       created_by,
-      users:created_by (
-        display_name
-      )
+      workspace_id,
+      creator:users(display_name)
     `)
     .or(`workspace_id.eq.${userData?.workspace_id},workspace_id.is.null`)
     .order('term')
@@ -65,9 +65,9 @@ export default async function JargonPage() {
                     <span className="font-bold">${term.default_cost}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">{term.description}</p>
-                  {term.users && term.users.length > 0 && (
+                  {term.creator && term.creator.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-2">
-                      Added by {term.users[0]?.display_name || 'Unknown'} 
+                      Added by {term.creator[0]?.display_name || 'Unknown'} 
                     </p>
                   )}
                 </div>
