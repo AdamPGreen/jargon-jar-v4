@@ -15,12 +15,22 @@ type JargonTerm = {
 export default async function JargonPage() {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
+  
+  // Extract Slack user ID from identities
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Find the slack_oidc identity to get the actual Slack user ID
+  const slackIdentity = user?.identities?.find(id => id.provider === 'slack_oidc')
+  const slackIdentityData = slackIdentity?.identity_data as { provider_id?: string } | undefined
+  
+  // Get the Slack ID either from the identity's id field or provider_id in identity_data
+  const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
 
   // Get user's workspace ID
   const { data: userData } = await supabase
     .from('users')
     .select('workspace_id')
-    .eq('slack_id', session?.user.id)
+    .eq('slack_id', slackUserId)
     .single()
 
   // Get jargon terms for the workspace (both global and workspace-specific)
