@@ -64,6 +64,7 @@ export function useUserAmountLeaderboard({
       const dateFilter = getDateFilter(timePeriod);
       const params = new URLSearchParams({
         workspace_id: workspaceId,
+        time_period: timePeriod,
         limit: limit.toString()
       });
       

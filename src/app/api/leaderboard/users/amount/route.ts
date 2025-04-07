@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const workspaceId = url.searchParams.get('workspace_id')
   const limit = Number.parseInt(url.searchParams.get('limit') || '10', 10)
+  const timePeriod = url.searchParams.get('time_period') || 'all'
   
   // Validate parameters
   if (!workspaceId) {
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
     // Get top users by total amount charged
     const { data, error } = await supabaseAdmin.rpc('get_top_users_by_amount', { 
       workspace_id_param: workspaceId,
+      time_period: timePeriod,
       limit_param: limit
     })
     
