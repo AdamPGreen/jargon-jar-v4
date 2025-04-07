@@ -68,9 +68,21 @@ export default async function Home({
 
               {/* Action Buttons */}
               <div className="flex flex-col md:flex-row gap-4 items-start mb-16">
+                {/* Sign In Button */}
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-[#FF5500] hover:bg-[#FF5500]/90 text-white text-base font-bold h-12 px-8 order-2 md:order-1"
+                >
+                  <a href="/api/auth/signin">
+                    Sign in with Slack
+                  </a>
+                </Button>
+                
                 {/* Add to Slack Button */}
                 <a
                   href="https://slack.com/oauth/v2/authorize?client_id=7831214798177.8652143181591&scope=app_mentions:read,channels:history,chat:write,commands,groups:history,im:write,users:read,users:read.email,team:read&user_scope=identity.basic,identity.avatar,identity.email,identity.team"
+                  className="order-1 md:order-2"
                 >
                   <img
                     alt="Add to Slack"
@@ -81,17 +93,6 @@ export default async function Home({
                     className="transform hover:scale-105 transition-transform"
                   />
                 </a>
-
-                {/* Sign In Button */}
-                <Button
-                  asChild
-                  variant="outline"
-                  className="bg-transparent border-[#f9b507] text-[#f9b507] hover:bg-[#f9b507]/10 rounded-lg px-6"
-                >
-                  <a href="/api/auth/signin">
-                    Sign in with Slack
-                  </a>
-                </Button>
               </div>
             </div>
 
