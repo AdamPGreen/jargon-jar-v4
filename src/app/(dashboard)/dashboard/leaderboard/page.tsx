@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 // Define types for better type safety
 type LeaderboardEntry = {
@@ -12,17 +13,31 @@ type LeaderboardEntry = {
 
 export default async function LeaderboardPage() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Find the slack_oidc identity to get the actual Slack user ID
+  const slackIdentity = user?.identities?.find(id => id.provider === 'slack_oidc')
+  const slackIdentityData = slackIdentity?.identity_data as { provider_id?: string } | undefined
+  
+  // Get the Slack ID either from the identity's id field or provider_id in identity_data
+  const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
 
-  // Get user's workspace ID
-  const { data: userData } = await supabase
+  // Create an admin client to bypass RLS
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  // Get user's workspace ID using the admin client
+  const { data: userData } = await supabaseAdmin
     .from('users')
     .select('workspace_id')
-    .eq('slack_id', session?.user.id)
+    .eq('slack_id', slackUserId)
     .single()
 
-  // Get top 10 charged users in the workspace
-  const { data: leaderboard } = await supabase
+  // Get top 10 charged users in the workspace using admin client
+  const { data: leaderboard } = await supabaseAdmin
     .from('charges')
     .select(`
       charged_user_id,
