@@ -221,55 +221,68 @@ This document compiles essential documentation links for building the Jargon Jar
 
 #### users
 - `id` (UUID, PK) - Unique identifier
-- `slack_id` (String) - Slack user ID
-- `email` (String) - User email from Slack
-- `display_name` (String) - User display name
-- `avatar_url` (String) - Profile picture URL
-- `workspace_id` (FK to workspaces) - Associated Slack workspace
-- `created_at` (Timestamp) - Account creation time
-- `updated_at` (Timestamp) - Last update time
+- `slack_id` (text) - Slack user ID
+- `email` (text) - User email from Slack
+- `display_name` (text) - User display name
+- `avatar_url` (text) - Profile picture URL
+- `workspace_id` (UUID, FK to workspaces) - Associated Slack workspace
+- `created_at` (timestamptz) - Account creation time
+- `updated_at` (timestamptz) - Last update time
 
 #### workspaces
 - `id` (UUID, PK) - Unique identifier
-- `slack_id` (String) - Slack workspace ID
-- `name` (String) - Workspace name
-- `domain` (String) - Slack workspace domain
-- `token` (String, encrypted) - OAuth access token
-- `bot_token` (String, encrypted) - Bot user OAuth token
-- `created_at` (Timestamp) - Workspace addition time
-- `updated_at` (Timestamp) - Last update time
+- `slack_id` (text) - Slack workspace ID
+- `name` (text) - Workspace name
+- `domain` (text) - Slack workspace domain
+- `token` (text, encrypted) - OAuth access token
+- `bot_token` (text, encrypted) - Bot user OAuth token
+- `created_at` (timestamptz) - Workspace addition time
+- `updated_at` (timestamptz) - Last update time
 
 #### jargon_terms
 - `id` (UUID, PK) - Unique identifier
-- `term` (String) - The jargon word/phrase
-- `description` (String) - Brief explanation of the term
-- `default_cost` (Decimal) - Default charging amount
-- `created_by` (FK to users) - User who added the term
-- `workspace_id` (FK to workspaces) - Workspace-specific terms (null for global)
-- `created_at` (Timestamp) - Term addition time
-- `updated_at` (Timestamp) - Last update time
+- `term` (text) - The jargon word/phrase
+- `description` (text) - Brief explanation of the term
+- `default_cost` (numeric) - Default charging amount
+- `created_by` (UUID, FK to users) - User who added the term
+- `workspace_id` (UUID, FK to workspaces) - Workspace-specific terms
+- `created_at` (timestamptz) - Term addition time
+- `updated_at` (timestamptz) - Last update time
 
 #### charges
 - `id` (UUID, PK) - Unique identifier
-- `charged_user_id` (FK to users) - User being charged
-- `charging_user_id` (FK to users) - User imposing the charge
-- `jargon_term_id` (FK to jargon_terms) - Associated jargon
-- `amount` (Decimal) - Charge amount
-- `message_text` (String) - Original message containing jargon
-- `message_ts` (String) - Slack message timestamp
-- `channel_id` (String) - Slack channel ID
-- `is_automatic` (Boolean) - Whether the charge was automatic
-- `workspace_id` (FK to workspaces) - Associated workspace
-- `created_at` (Timestamp) - Charge time
+- `charged_user_id` (UUID, FK to users) - User being charged
+- `charging_user_id` (UUID, FK to users) - User imposing the charge
+- `jargon_term_id` (UUID, FK to jargon_terms) - Associated jargon
+- `amount` (numeric) - Charge amount
+- `message_text` (text) - Original message containing jargon
+- `message_ts` (text) - Slack message timestamp
+- `channel_id` (text) - Slack channel ID
+- `is_automatic` (bool) - Whether the charge was automatic
+- `workspace_id` (UUID, FK to workspaces) - Associated workspace
+- `created_at` (timestamptz) - Charge time
 
 #### channels
 - `id` (UUID, PK) - Unique identifier
-- `slack_id` (String) - Slack channel ID
-- `name` (String) - Channel name
-- `workspace_id` (FK to workspaces) - Associated workspace
-- `is_monitoring` (Boolean) - Whether auto-detection is enabled
-- `created_at` (Timestamp) - Channel addition time
-- `updated_at` (Timestamp) - Last update time
+- `slack_id` (text) - Slack channel ID
+- `name` (text) - Channel name
+- `workspace_id` (UUID, FK to workspaces) - Associated workspace
+- `is_monitoring` (bool) - Whether auto-detection is enabled
+- `created_at` (timestamptz) - Channel addition time
+- `updated_at` (timestamptz) - Last update time
+
+### Views
+
+#### user_favorite_jargon
+A view that tracks users' most used jargon terms.
+- `charged_user_id` (uuid) - The user who used the jargon
+- `favorite_phrase` (text) - The jargon term/phrase
+- `term_count` (bigint, int8) - Number of times the user has used this term
+
+#### user_jargon_counts
+A view that provides aggregate counts of jargon usage per user.
+- `charged_user_id` (uuid) - The user who used the jargon
+- `jargon_count` (bigint, int8) - Total count of jargon terms used by the user
 
 ## API Endpoints
 
@@ -295,105 +308,122 @@ This document compiles essential documentation links for building the Jargon Jar
 
 ### Data Structures
 
-#### Charge Object
-When fetching charges from the database, the data structure includes nested objects for related entities:
-
-```typescript
-type Charge = {
-  id: string;
-  amount: number;
-  channel_id: string;
-  created_at: string;
-  charging_user: {
-    id: string;
-    display_name: string;
-    avatar_url: string | null;
-  };
-  charged_user: {
-    id: string;
-    display_name: string;
-    avatar_url: string | null;
-  };
-  jargon_term: {
-    id: string;
-    term: string;
-  };
-}
-```
-
-This structure is used in the dashboard's activity feed to display recent charges. The nested objects represent the related entities (users and jargon terms) directly, rather than as arrays.
-
 ### Users
 - `GET /api/users/me` - Get current user
 - `GET /api/users/:id` - Get user details
 - `GET /api/users/leaderboard` - Get jargon usage leaderboard
 
-## Slack Integration Progress (Week 5)
+## Database Functions
 
-### Completed
-- Successfully configured Slack App settings:
-  - Set up OAuth scopes for bot token
-  - Configured slash command `/charge` endpoint
-  - Enabled interactive components
-  - Set up proper environment variables
-- Implemented slash command handler:
-  - Created `/api/slack/commands/route.ts`
-  - Added request verification
-  - Implemented modal opening functionality
-- Created interactions handler:
-  - Set up `/api/slack/interactions/route.ts`
-  - Added basic modal submission handling
-  - Implemented request verification
-- Enhanced Slack modal UX:
-  - Implemented dynamic field updates based on jargon selection
-  - Added "Add New Jargon" button with plus sign emoji
-  - Optimized metadata size to stay within Slack's limits
-  - Fixed type errors and linter issues
-  - Added debug logging for troubleshooting
+### get_my_workspace_id()
+Returns the workspace_id for the currently authenticated user.
 
-### Technical Details
-- Using Slack's Block Kit for modal UI
-- Implemented proper request verification using Slack's signing secret
-- Added diagnostic logging for debugging
-- Configured proper CORS headers in `next.config.js`
-- Optimized modal metadata to stay under Slack's 3001 character limit
-- Fixed button styling issues in modal views
-- Implemented dispatch_action to trigger immediate updates on selection changes
-- Used `views.push` API for modal stacking when adding new jargon terms
+```sql
+CREATE OR REPLACE FUNCTION get_my_workspace_id()
+RETURNS UUID
+LANGUAGE sql
+SECURITY definer
+AS $$
+  SELECT workspace_id
+  FROM users
+  WHERE id = auth.uid();
+$$;
+```
 
-### Next Steps
-- Implement unified `/jargon` command structure with subcommands
-- Create handlers for different subcommands (`charge`, `add-term`, `help`)
-- Update Slack app configuration for the new command structure
-- Implement automated jargon detection in channels
-- Add error handling and user feedback for edge cases
+### get_top_users_by_amount(workspace_id_param UUID, time_period text, limit_param integer)
+Returns leaderboard data for users based on their jargon charges within a specified time period.
 
-### Progress Update (Week 6)
-- **Fixed Modal JSON Display Issue:**
-  - Resolved issue where modal JSON payload was displaying in Slack channels
-  - Modified command handler to return empty 200 OK response after API calls
-  - Ensured clean user experience with no technical details visible to users
+Parameters:
+- `workspace_id_param` (UUID) - The workspace to get results for
+- `time_period` (text) - Either 'week', 'month', or null for all time
+- `limit_param` (integer) - Maximum number of users to return
 
-- **Implemented "Add New Jargon" Button:**
-  - Created workflow for adding new jargon terms directly from the charge modal
-  - Built stacked modal interface using Slack's `views.push` API
-  - Added form validation and error handling for jargon term submission
-  - Implemented database operations to save new terms to workspace collections
-  - Added confirmation messages posted to the channel when terms are added
+Returns:
+- `user_id` (UUID) - User's unique identifier
+- `name` (text) - User's display name
+- `image_url` (text) - User's avatar URL
+- `total_amount` (numeric) - Total amount charged
+- `charge_count` (integer) - Number of charges
 
-- **Completed Charge Creation Flow:**
-  - Implemented full workflow from slash command to confirmation message
-  - Added proper error handling and validation throughout the process
-  - Created database records for charges with all required metadata
-  - Added descriptive confirmation messages in Slack channels
+```sql
+CREATE OR REPLACE FUNCTION get_top_users_by_amount(
+  workspace_id_param UUID,
+  time_period text,
+  limit_param integer
+)
+RETURNS TABLE (
+  user_id UUID,
+  name text,
+  image_url text,
+  total_amount numeric,
+  charge_count bigint
+)
+LANGUAGE plpgsql
+SECURITY definer
+AS $$
+DECLARE
+  start_date TIMESTAMP;
+BEGIN
+  -- Set the start date based on time_period
+  IF time_period = 'week' THEN
+    start_date := NOW() - INTERVAL '1 week';
+  ELSIF time_period = 'month' THEN
+    start_date := NOW() - INTERVAL '1 month';
+  ELSE
+    start_date := NULL; -- All time
+  END IF;
 
-### Next Session Prompt
-"Let's implement a unified slash command structure for Jargon Jar. We need to:
+  RETURN QUERY
+  SELECT 
+    u.id as user_id,
+    u.display_name as name,
+    u.avatar_url as image_url,
+    COALESCE(SUM(c.amount), 0) as total_amount,
+    COUNT(c.id) as charge_count
+  FROM 
+    users u
+  LEFT JOIN 
+    charges c ON u.id = c.charged_user_id
+  WHERE
+    u.workspace_id = workspace_id_param
+    AND (start_date IS NULL OR c.created_at >= start_date)
+    AND (c.workspace_id = workspace_id_param OR c.id IS NULL)
+  GROUP BY 
+    u.id, u.display_name, u.avatar_url
+  ORDER BY 
+    total_amount DESC
+  LIMIT 
+    limit_param;
+END;
+$$;
+```
 
-1. Create a new `/jargon` command handler that can parse and route subcommands
-2. Move the existing `/charge` functionality to work as `/jargon charge`
-3. Implement direct term adding with `/jargon add-term`  
-4. Add a `/jargon help` command that displays available options
-5. Update our Slack app configuration to use the new command structure
+### update_updated_at_column()
+Trigger function to automatically update the updated_at timestamp when a row is modified.
 
-This will require modifying the existing command handler, creating helper functions for the different subcommands, and updating the Slack app settings. Can you help me implement this new command structure?"
+```sql
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+```
+
+Usage example for update_updated_at_column:
+```sql
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+```
+
+-- Users: Users can only see users in their workspace
+CREATE POLICY "Users can view users in their workspace"
+    ON users FOR SELECT
+    USING (workspace_id = get_my_workspace_id());
+
+-- Jargon Terms: Users can view all terms in their workspace
