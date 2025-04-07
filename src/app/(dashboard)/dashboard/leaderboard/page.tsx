@@ -45,6 +45,19 @@ export default function LeaderboardPage() {
         }
         
         console.log('DIAGNOSTIC (Leaderboard Page): Attempting to fetch workspace ID for Slack User ID:', slackUserId);
+
+        // *** ADDED: Call helper function to check RLS context ***
+        try {
+          const { data: rlsWorkspaceId, error: rlsError } = await supabase.rpc('get_my_workspace_id');
+          if (rlsError) {
+            console.error('DIAGNOSTIC (Leaderboard Page): Error calling get_my_workspace_id():', rlsError);
+          } else {
+            console.log('DIAGNOSTIC (Leaderboard Page): RLS context workspace ID (get_my_workspace_id):', rlsWorkspaceId);
+          }
+        } catch (rpcError) {
+          console.error('DIAGNOSTIC (Leaderboard Page): Exception calling get_my_workspace_id():', rpcError);
+        }
+        // *** END ADDED CODE ***
         
         // Get user data to find workspace ID
         const { data: userData, error: userError } = await supabase
