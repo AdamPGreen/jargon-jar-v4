@@ -40,8 +40,11 @@ export default function LeaderboardPage() {
         
         if (!slackUserId) {
           console.error('Could not find Slack user ID in auth identities')
+          setIsLoading(false)
           return
         }
+        
+        console.log('DIAGNOSTIC (Leaderboard Page): Attempting to fetch workspace ID for Slack User ID:', slackUserId);
         
         // Get user data to find workspace ID
         const { data: userData, error: userError } = await supabase
