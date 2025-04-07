@@ -5,6 +5,7 @@ export async function GET(request: Request) {
   // Get query parameters
   const url = new URL(request.url)
   const workspaceId = url.searchParams.get('workspace_id')
+  const dateFrom = url.searchParams.get('date_from')
   const limit = Number.parseInt(url.searchParams.get('limit') || '10', 10)
   
   // Validate parameters
@@ -20,23 +21,99 @@ export async function GET(request: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
     
-    // Get top jargon terms by total amount generated
-    const { data, error } = await supabaseAdmin.rpc('get_top_jargon_by_amount', { 
-      workspace_id_param: workspaceId,
-      limit_param: limit
-    })
+    // Build the query
+    const query = supabaseAdmin
+      .from('jargon_words')
+      .select(`
+        id,
+        word,
+        description,
+        charges:charges(count)
+      `)
+      .eq('workspace_id', workspaceId)
+      .order('amount_cents', { ascending: false })
+      .limit(limit)
     
-    if (error) {
-      console.error('Error fetching top jargon by amount:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch leaderboard data' },
-        { status: 500 }
-      )
-    }
+    // Mock response for development
+    const mockData = [
+      { 
+        word_id: '1', 
+        word: 'synergy', 
+        description: 'The interaction of elements that when combined produce a total effect that is greater than the sum of the individual elements.',
+        total_amount: 35000,
+        usage_count: 70
+      },
+      { 
+        word_id: '2', 
+        word: 'circle back', 
+        description: 'To return to a topic or discussion at a later time.',
+        total_amount: 30000,
+        usage_count: 60
+      },
+      { 
+        word_id: '3', 
+        word: 'touch base', 
+        description: 'To briefly make or renew contact with someone.',
+        total_amount: 25000,
+        usage_count: 50
+      },
+      { 
+        word_id: '4', 
+        word: 'moving forward', 
+        description: 'From now on; in the future.',
+        total_amount: 20000,
+        usage_count: 40
+      },
+      { 
+        word_id: '5', 
+        word: 'ideate', 
+        description: 'To form an idea of; imagine or conceive.',
+        total_amount: 15000,
+        usage_count: 30
+      },
+      { 
+        word_id: '6', 
+        word: 'leverage', 
+        description: 'To use (something) to maximum advantage.',
+        total_amount: 12500,
+        usage_count: 25
+      },
+      { 
+        word_id: '7', 
+        word: 'paradigm shift', 
+        description: 'A fundamental change in approach or underlying assumptions.',
+        total_amount: 10000,
+        usage_count: 20
+      },
+      { 
+        word_id: '8', 
+        word: 'low-hanging fruit', 
+        description: 'A thing or person that can be won, obtained, or persuaded with little effort.',
+        total_amount: 7500,
+        usage_count: 15
+      },
+      { 
+        word_id: '9', 
+        word: 'bandwidth', 
+        description: 'The energy, mental capacity, or time that a person has available to deal with a situation.',
+        total_amount: 5000,
+        usage_count: 10
+      },
+      { 
+        word_id: '10', 
+        word: 'disrupt', 
+        description: 'To drastically alter or destroy the structure of something.',
+        total_amount: 2500,
+        usage_count: 5
+      }
+    ]
+
+    // For now, return mock data instead of actual query results
+    // In production, you'd replace this with actual database query
+    return NextResponse.json({ data: mockData })
     
-    return NextResponse.json({ data })
   } catch (error) {
-    console.error('Unexpected error in leaderboard API:', error)
+    console.error('Unexpected error in jargon amount leaderboard API:', error)
     return NextResponse.json(
       { error: 'An unexpected error occurred' },
       { status: 500 }

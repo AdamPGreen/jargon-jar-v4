@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-type TimePeriod = 'all' | 'month' | 'week';
+export type TimePeriod = 'all' | 'month' | 'week';
 
 export interface LeaderboardUser {
   user_id: string;
@@ -13,6 +13,7 @@ export interface LeaderboardUser {
 export interface LeaderboardJargon {
   word_id: string;
   word: string;
+  description?: string;
   total_amount: number;
   usage_count: number;
 }
@@ -120,6 +121,102 @@ export function useUserFrequencyLeaderboard({
       
       try {
         const response = await fetch(`/api/leaderboard/users/frequency?${params}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch leaderboard data');
+        }
+        
+        const result = await response.json();
+        setData(result.data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [workspaceId, timePeriod, limit]);
+
+  return { data, isLoading, error };
+}
+
+export function useJargonAmountLeaderboard({ 
+  workspaceId, 
+  timePeriod,
+  limit = 10 
+}: FetchLeaderboardOptions) {
+  const [data, setData] = useState<LeaderboardJargon[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!workspaceId) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      const dateFilter = getDateFilter(timePeriod);
+      const params = new URLSearchParams({
+        workspace_id: workspaceId,
+        limit: limit.toString()
+      });
+      
+      if (dateFilter) {
+        params.append('date_from', dateFilter);
+      }
+      
+      try {
+        const response = await fetch(`/api/leaderboard/jargon/amount?${params}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch leaderboard data');
+        }
+        
+        const result = await response.json();
+        setData(result.data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [workspaceId, timePeriod, limit]);
+
+  return { data, isLoading, error };
+}
+
+export function useJargonFrequencyLeaderboard({ 
+  workspaceId, 
+  timePeriod,
+  limit = 10 
+}: FetchLeaderboardOptions) {
+  const [data, setData] = useState<LeaderboardJargon[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!workspaceId) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      const dateFilter = getDateFilter(timePeriod);
+      const params = new URLSearchParams({
+        workspace_id: workspaceId,
+        limit: limit.toString()
+      });
+      
+      if (dateFilter) {
+        params.append('date_from', dateFilter);
+      }
+      
+      try {
+        const response = await fetch(`/api/leaderboard/jargon/frequency?${params}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch leaderboard data');

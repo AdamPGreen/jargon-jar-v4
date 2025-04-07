@@ -1,12 +1,13 @@
 "use client"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DollarSignIcon, RepeatIcon, ZapIcon, TrendingUpIcon } from "lucide-react"
 import { useState } from "react"
 import { TopSpendersLeaderboard } from "@/components/leaderboard/TopSpendersLeaderboard"
 import { FrequentOffendersLeaderboard } from "@/components/leaderboard/FrequentOffendersLeaderboard"
+import { CostlyTermsLeaderboard } from "@/components/leaderboard/CostlyTermsLeaderboard"
+import { OverusedTermsLeaderboard } from "@/components/leaderboard/OverusedTermsLeaderboard"
 
 // Filter time periods
 type TimePeriod = "all" | "month" | "week"
@@ -90,39 +91,11 @@ export default function LeaderboardPage() {
         </TabsContent>
 
         <TabsContent value="costly-terms">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl font-semibold">
-                Most Expensive Jargon Terms
-              </CardTitle>
-              <ZapIcon className="h-5 w-5 text-[#feca11]" />
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="h-[400px] flex items-center justify-center border-t">
-                <p className="text-muted-foreground text-sm italic">
-                  Jargon term data will be displayed here
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <CostlyTermsLeaderboard workspaceId={workspaceId} timePeriod={timePeriod} />
         </TabsContent>
 
         <TabsContent value="overused-terms">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl font-semibold">
-                Most Frequently Used Jargon
-              </CardTitle>
-              <TrendingUpIcon className="h-5 w-5 text-[#feca11]" />
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="h-[400px] flex items-center justify-center border-t">
-                <p className="text-muted-foreground text-sm italic">
-                  Jargon frequency data will be displayed here
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <OverusedTermsLeaderboard workspaceId={workspaceId} timePeriod={timePeriod} />
         </TabsContent>
       </Tabs>
     </div>
