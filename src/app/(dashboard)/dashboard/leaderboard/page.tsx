@@ -2,16 +2,19 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { TrophyIcon, DollarSignIcon, RepeatIcon, ZapIcon, TrendingUpIcon } from "lucide-react"
+import { DollarSignIcon, RepeatIcon, ZapIcon, TrendingUpIcon } from "lucide-react"
 import { useState } from "react"
+import { TopSpendersLeaderboard } from "@/components/leaderboard/TopSpendersLeaderboard"
+import { FrequentOffendersLeaderboard } from "@/components/leaderboard/FrequentOffendersLeaderboard"
 
 // Filter time periods
 type TimePeriod = "all" | "month" | "week"
 
 export default function LeaderboardPage() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all")
+  // Mock workspace ID - in a real app, this would come from a context or auth session
+  const workspaceId = "123e4567-e89b-12d3-a456-426614174000"
 
   return (
     <div className="space-y-6">
@@ -79,39 +82,11 @@ export default function LeaderboardPage() {
 
         {/* Tab content */}
         <TabsContent value="top-spenders">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl font-semibold">
-                Top Spenders
-              </CardTitle>
-              <TrophyIcon className="h-5 w-5 text-[#feca11]" />
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="h-[400px] flex items-center justify-center border-t">
-                <p className="text-muted-foreground text-sm italic">
-                  User data will be displayed here
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <TopSpendersLeaderboard workspaceId={workspaceId} timePeriod={timePeriod} />
         </TabsContent>
 
         <TabsContent value="frequent-offenders">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl font-semibold">
-                Frequent Offenders
-              </CardTitle>
-              <RepeatIcon className="h-5 w-5 text-[#feca11]" />
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="h-[400px] flex items-center justify-center border-t">
-                <p className="text-muted-foreground text-sm italic">
-                  User frequency data will be displayed here
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <FrequentOffendersLeaderboard workspaceId={workspaceId} timePeriod={timePeriod} />
         </TabsContent>
 
         <TabsContent value="costly-terms">
