@@ -60,7 +60,7 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
     }
     
     return (
-      <div className="p-6 border-t">
+      <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center justify-center py-6 px-4 text-[#9a9da5] font-inter">
           <p className="text-sm">{message}</p>
         </div>
@@ -273,8 +273,8 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
     const displayedItems = items.slice(0, visibleItems)
 
     return (
-      <div className="flex flex-col">
-        <div className="divide-y divide-gray-100">
+      <div className="flex flex-col h-full">
+        <div className="divide-y divide-gray-100 flex-1">
           {displayedItems.map((activity, index) => (
             <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
               {renderActivity(activity)}
@@ -297,8 +297,8 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
   }
 
   return (
-    <div className="font-inter">
-      <Tabs defaultValue="all" className="w-full">
+    <div className="font-inter h-full flex flex-col">
+      <Tabs defaultValue="all" className="w-full h-full flex flex-col">
         <TabsList className="w-full bg-white border-b rounded-t-lg">
           <TabsTrigger value="all" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
             <span className="flex items-center gap-2">
@@ -326,20 +326,20 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
           </TabsTrigger>
         </TabsList>
         
-        <div className="bg-white rounded-b-lg overflow-hidden">
-          <TabsContent value="all" className="m-0">
+        <div className="bg-white rounded-b-lg overflow-hidden flex-1">
+          <TabsContent value="all" className="m-0 h-full">
             {activities.length > 0 ? renderActivityList(activities) : renderEmptyState("all")}
           </TabsContent>
           
-          <TabsContent value="received" className="m-0">
+          <TabsContent value="received" className="m-0 h-full">
             {receivedActivities.length > 0 ? renderActivityList(receivedActivities) : renderEmptyState("received")}
           </TabsContent>
           
-          <TabsContent value="made" className="m-0">
+          <TabsContent value="made" className="m-0 h-full">
             {madeActivities.length > 0 ? renderActivityList(madeActivities) : renderEmptyState("made")}
           </TabsContent>
           
-          <TabsContent value="terms" className="m-0">
+          <TabsContent value="terms" className="m-0 h-full">
             {termAddedActivities.length > 0 ? renderActivityList(termAddedActivities) : renderEmptyState("terms")}
           </TabsContent>
         </div>

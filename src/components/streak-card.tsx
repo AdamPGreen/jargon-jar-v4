@@ -27,9 +27,9 @@ const subMessagesForZeroDays = [
 ];
 
 const messagesForOneDay = [
-  "1 Day Without Jargon!",
+  "Day Without Jargon!",
   "One day down!",
-  "Keepin' it clean for a day.",
+  "Keepin' it clean!",
 ];
 
 const subMessagesForOneDay = [
@@ -40,9 +40,9 @@ const subMessagesForOneDay = [
 ];
 
 const messagesForMultipleDays = (days: number) => [
-  `${days} Days Without Jargon`,
-  `${days} days jargon-free!`,
-  `Going strong: ${days} days.`,
+  "Days Without Jargon",
+  "Days jargon-free!",
+  "Going strong!",
 ];
 
 const subMessagesForMultipleDays = [
@@ -52,10 +52,10 @@ const subMessagesForMultipleDays = [
 ];
 
 const messagesForLongStreak = (days: number) => [
-  `Jargon Ninja! ${days} Days!`,
-  `Corporate BS Dodger: ${days} Days!`,
-  `Wow! ${days} days clear!`,
-  `${days} Days! Unstoppable!`,
+  "Jargon Ninja!",
+  "Corporate BS Dodger!",
+  "Clean streak!",
+  "Unstoppable!",
 ];
 
 const subMessagesForLongStreak = [
