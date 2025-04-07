@@ -44,6 +44,10 @@ export default async function LeaderboardPage() {
     .rpc('get_top_jargon_users', { workspace_id_param: userData?.workspace_id })
     .limit(10)
 
+  // Add logging here
+  console.log('[LeaderboardPage] Workspace ID:', userData?.workspace_id);
+  console.log('[LeaderboardPage] Raw Leaderboard Data:', leaderboard);
+
   // Transform the data for the HallOfShame component
   const topUsers = leaderboard?.map((entry: LeaderboardEntry) => ({
     id: entry.charged_user_id,
@@ -63,16 +67,12 @@ export default async function LeaderboardPage() {
         </p>
       </div>
 
-      <div className="rounded-lg border shadow-sm">
-        <div className="p-6">
-          <h2 className="text-xl font-semibold">Top Jargon Offenders</h2>
-          <p className="text-sm text-muted-foreground">
+      <div className="rounded-lg border shadow-sm p-6">
+          <h2 className="text-xl font-semibold mb-2">Top Jargon Offenders</h2>
+          <p className="text-sm text-muted-foreground mb-4">
             Based on the total amount charged for using jargon.
           </p>
-        </div>
-        <div className="p-6 border-t">
           <HallOfShame topUsers={topUsers} />
-        </div>
       </div>
     </div>
   )
