@@ -129,12 +129,24 @@ export async function POST(req: Request) {
         })
       
       case 'help':
-      default:
         return await handleHelpCommand({
           slack,
           channelId,
           userId,
           command
+        })
+      
+      default:
+        // Default to charge modal when no subcommand is provided
+        return await handleChargeCommand({
+          slack,
+          supabase,
+          workspace,
+          triggerId,
+          channelId,
+          teamId,
+          userId,
+          args: subcommandArgs
         })
     }
   } catch (error) {
