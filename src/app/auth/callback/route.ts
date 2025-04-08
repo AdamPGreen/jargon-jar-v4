@@ -146,6 +146,7 @@ export async function GET(request: NextRequest) {
                  display_name: displayName,
                  avatar_url: avatarUrl,
                  workspace_id: workspace.id,
+                 auth_id: user.id,
                  needs_install_completion: true // Flag indicating this user was created via OIDC
                }
                

@@ -138,6 +138,8 @@ export async function GET(request: NextRequest) {
       display_name: userDisplayName,
       avatar_url: userAvatarUrl,
       workspace_id: workspace.id,
+      // We don't have the auth_id yet at this point in the flow
+      // It will be updated later when the user signs in
     }
     console.log('DIAGNOSTIC (Callback): Upserting user with data (Admin Client):', JSON.stringify({...userUpsertData, avatar_url: '[REDACTED]'}, null, 2))
 
