@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
     // Parse the subcommand from the text
     const args = text.trim().split(/\s+/)
-    const subcommand = args[0].toLowerCase() || 'help' // Default to help if no subcommand
+    const subcommand = args[0].toLowerCase() || 'charge' // Default to charge if no subcommand
     const subcommandArgs = args.slice(1).join(' ')
     
     // Create Supabase client with service role
