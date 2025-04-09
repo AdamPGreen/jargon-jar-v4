@@ -69,6 +69,7 @@ export async function POST(req: Request) {
     const channelId = formData.get('channel_id')
     const teamId = formData.get('team_id')
     const userId = formData.get('user_id')
+    const threadTs = formData.get('thread_ts') // Extract thread timestamp if command was used in a thread
     
     if (!command || !triggerId || !channelId || !teamId || !userId) {
       return new Response('Missing required fields', { status: 400 })
@@ -111,7 +112,8 @@ export async function POST(req: Request) {
           channelId,
           teamId,
           userId,
-          args: subcommandArgs
+          args: subcommandArgs,
+          threadTs
         })
       
       case 'new':
@@ -125,7 +127,8 @@ export async function POST(req: Request) {
           channelId,
           teamId,
           userId,
-          args: subcommandArgs
+          args: subcommandArgs,
+          threadTs
         })
       
       case 'help':
@@ -133,7 +136,8 @@ export async function POST(req: Request) {
           slack,
           channelId,
           userId,
-          command
+          command,
+          threadTs
         })
       
       default:
@@ -146,7 +150,8 @@ export async function POST(req: Request) {
           channelId,
           teamId,
           userId,
-          args: subcommandArgs
+          args: subcommandArgs,
+          threadTs
         })
     }
   } catch (error) {
@@ -164,7 +169,8 @@ async function handleChargeCommand({
   channelId,
   teamId,
   userId,
-  args
+  args,
+  threadTs
 }: {
   slack: WebClient,
   supabase: SupabaseClient,
@@ -173,7 +179,8 @@ async function handleChargeCommand({
   channelId: string,
   teamId: string,
   userId: string,
-  args: string
+  args: string,
+  threadTs?: string | null
 }) {
   try {
     // Fetch jargon terms for this workspace
@@ -283,7 +290,8 @@ async function handleChargeCommand({
       ],
       private_metadata: JSON.stringify({
         channel_id: channelId,
-        workspace_id: workspace.id
+        workspace_id: workspace.id,
+        thread_ts: threadTs || null // Include thread timestamp in metadata
       })
     }
 
@@ -316,7 +324,8 @@ async function handleAddTermCommand({
   channelId,
   teamId,
   userId,
-  args
+  args,
+  threadTs
 }: {
   slack: WebClient,
   supabase: SupabaseClient,
@@ -325,7 +334,8 @@ async function handleAddTermCommand({
   channelId: string,
   teamId: string,
   userId: string,
-  args: string
+  args: string,
+  threadTs?: string | null
 }) {
   try {
     // Define the Add Jargon modal view
@@ -408,7 +418,8 @@ async function handleAddTermCommand({
       private_metadata: JSON.stringify({
         channel_id: channelId,
         workspace_id: workspace.id,
-        direct_command: true
+        direct_command: true,
+        thread_ts: threadTs || null // Include thread timestamp in metadata
       })
     }
     
@@ -431,12 +442,14 @@ async function handleHelpCommand({
   slack,
   channelId,
   userId,
-  command
+  command,
+  threadTs
 }: {
   slack: WebClient,
   channelId: string,
   userId: string,
-  command: string
+  command: string,
+  threadTs?: string | null
 }) {
   try {
     // Create a nicely formatted help message
@@ -489,9 +502,11 @@ async function handleHelpCommand({
     ]
 
     // Send an ephemeral message (only visible to the user who triggered the command)
+    // Include thread_ts if the command was used in a thread
     await slack.chat.postEphemeral({
       channel: channelId,
       user: userId,
+      thread_ts: threadTs || undefined, // Include thread_ts if available
       blocks: helpBlocks,
       text: 'Jargon Jar Commands' // Fallback text
     })
