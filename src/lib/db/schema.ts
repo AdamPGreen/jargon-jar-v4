@@ -88,6 +88,12 @@ export const jargonTerms = pgTable(
       table.workspaceId,
       sql`lower(${table.term})`
     ),
+    globalTermIdx: uniqueIndex("jargon_terms_global_term_idx")
+      .on(sql`lower(${table.term})`)
+      .where(sql`${table.workspaceId} IS NULL`),
+    workspaceTermUniqueIdx: uniqueIndex("jargon_terms_workspace_term_unique_idx")
+      .on(table.workspaceId, sql`lower(${table.term})`)
+      .where(sql`${table.workspaceId} IS NOT NULL`),
     workspaceIdx: index("jargon_terms_workspace_idx").on(table.workspaceId),
   })
 )

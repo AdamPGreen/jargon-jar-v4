@@ -27,12 +27,12 @@ export default async function DashboardLayout({
   ]
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       {/* Top navigation */}
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b bg-card/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="font-bold text-xl">
+            <Link href="/dashboard" className="font-heading text-xl font-bold">
               Jargon Jar
             </Link>
             
@@ -41,7 +41,7 @@ export default async function DashboardLayout({
                 <Link 
                   key={item.href}
                   href={item.href} 
-                  className="text-sm font-medium transition-colors hover:text-primary"
+                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {item.title}
                 </Link>
@@ -81,7 +81,7 @@ export default async function DashboardLayout({
       </header>
       
       {/* Main content */}
-      <main className="flex-1 container px-4 py-6">
+      <main className="container flex-1 px-4 py-8">
         {children}
       </main>
       

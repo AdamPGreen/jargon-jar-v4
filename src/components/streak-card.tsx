@@ -84,7 +84,7 @@ export function StreakCard({ currentStreak, recordStreak }: StreakCardProps) {
   }
 
   return (
-    <Card className="col-span-1 shadow-sm"> {/* Adjust col-span as needed */}
+    <Card className="col-span-1">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">
           Jargon-Free Streak
@@ -92,7 +92,7 @@ export function StreakCard({ currentStreak, recordStreak }: StreakCardProps) {
         <CalendarIcon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent className="flex flex-col items-center justify-center pt-4">
-        <div className="text-4xl font-bold text-amber-500">{currentStreak}</div>
+        <div className="font-heading text-5xl font-bold text-primary">{currentStreak}</div>
         <p className="mt-1 text-center text-base text-muted-foreground">{titleMessage}</p>
         <p className="text-xs text-center text-muted-foreground">{subMessage}</p>
         {isNewRecord && (

@@ -110,46 +110,46 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
           Your virtual jargon jar for {workspace.name}
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="border-primary/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Your Charges</CardTitle>
-            <DollarSignIcon className="h-4 w-4 text-muted-foreground" />
+            <DollarSignIcon className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${userTotalCharges.toFixed(2)}</div>
+            <div className="font-heading text-3xl font-bold">${userTotalCharges.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
               {userCharges.length} times caught
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-primary/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Workspace Jar</CardTitle>
-            <RepeatIcon className="h-4 w-4 text-muted-foreground" />
+            <RepeatIcon className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${workspaceTotalCharges.toFixed(2)}</div>
+            <div className="font-heading text-3xl font-bold">${workspaceTotalCharges.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
               {workspaceCharges.length} total charges
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-primary/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Most Common Jargon</CardTitle>
-            <ZapIcon className="h-4 w-4 text-muted-foreground" />
+            <ZapIcon className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mostCommonJargon.term}</div>
+            <div className="font-heading text-3xl font-bold">{mostCommonJargon.term}</div>
             <p className="text-xs text-muted-foreground">
               {mostCommonJargon.count} uses
             </p>

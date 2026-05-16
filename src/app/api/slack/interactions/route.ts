@@ -9,6 +9,7 @@ import {
   upsertWorkspaceMember,
 } from "@/lib/db/queries"
 import { fetchSlackUserInfo } from "@/lib/slack/api"
+import { postChargeNotification } from "@/lib/slack/notifications"
 import { verifySlackRequest } from "@/lib/slack/security"
 
 type SlackInteractionPayload = {
@@ -130,11 +131,17 @@ async function handleChargeSubmission(payload: SlackInteractionPayload) {
     channelId: metadata.channel_id ?? "",
   })
 
-  await slack.chat.postMessage({
-    channel: metadata.channel_id!,
-    thread_ts: metadata.thread_ts ?? undefined,
-    text: `<@${chargedSlackUserId}> was charged $${Number(amount).toFixed(2)} for "${termName}".`,
+  const notification = await postChargeNotification({
+    postMessage: slack.chat.postMessage.bind(slack.chat),
+    channelId: metadata.channel_id!,
+    threadTs: metadata.thread_ts,
+    chargedSlackUserId: chargedSlackUserId!,
+    amount: amount!,
+    termName,
   })
+  if (!notification.ok) {
+    console.error("Slack charge notification failed:", notification.error)
+  }
 
   return NextResponse.json({ response_action: "clear" })
 }

@@ -41,7 +41,7 @@ export default function LeaderboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Hall of Shame</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">Hall of Shame</h1>
           <p className="text-muted-foreground">
             Who's been caught using the most corporate jargon?
           </p>
@@ -53,7 +53,7 @@ export default function LeaderboardPage() {
             variant={timePeriod === "all" ? "default" : "outline"}
             size="sm"
             onClick={() => setTimePeriod("all")}
-            className={timePeriod === "all" ? "bg-[#feca11] hover:bg-[#e5b400] text-gray-900" : ""}
+            className={timePeriod === "all" ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
           >
             All Time
           </Button>
@@ -61,7 +61,7 @@ export default function LeaderboardPage() {
             variant={timePeriod === "month" ? "default" : "outline"}
             size="sm"
             onClick={() => setTimePeriod("month")}
-            className={timePeriod === "month" ? "bg-[#feca11] hover:bg-[#e5b400] text-gray-900" : ""}
+            className={timePeriod === "month" ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
           >
             This Month
           </Button>
@@ -69,7 +69,7 @@ export default function LeaderboardPage() {
             variant={timePeriod === "week" ? "default" : "outline"}
             size="sm"
             onClick={() => setTimePeriod("week")}
-            className={timePeriod === "week" ? "bg-[#feca11] hover:bg-[#e5b400] text-gray-900" : ""}
+            className={timePeriod === "week" ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
           >
             This Week
           </Button>

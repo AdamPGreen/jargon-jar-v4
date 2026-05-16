@@ -135,7 +135,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                       
                       return (
                         <div 
-                          className="bg-white rounded-lg border border-[#e2e8f0] shadow-md p-3 max-w-[250px] animate-in fade-in-50 slide-in-from-bottom-1 duration-200 z-50"
+                          className="z-50 max-w-[250px] animate-in rounded-lg border bg-card p-3 text-card-foreground shadow-md fade-in-50 slide-in-from-bottom-1 duration-200"
                           style={{ animation: 'fadeIn 150ms ease-out' }}
                         >
                           <div className="flex items-center space-x-2 mb-2">
@@ -143,7 +143,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                               <AvatarImage src={user.avatar_url || undefined} alt={user.display_name} />
                               <AvatarFallback>{getInitials(user.display_name)}</AvatarFallback>
                             </Avatar>
-                            <span className="font-bold text-[#191d22] text-sm">
+                            <span className="text-sm font-bold text-foreground">
                               {user.display_name}
                             </span>
                           </div>
@@ -166,7 +166,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                           
                           <div className={cn(
                             "mt-2 text-sm",
-                            user.rank === 1 ? "text-[#FF5533] font-medium" : "text-gray-600"
+                            user.rank === 1 ? "font-medium text-destructive" : "text-muted-foreground"
                           )}>
                             {getRankMessage(user.rank, formattedTopUsers.length)}
                           </div>
@@ -178,9 +178,9 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
                 />
                 <Bar 
                   dataKey="total_charges" 
-                  fill="#FDDB3E" 
+                  fill="hsl(var(--primary))" 
                   radius={[4, 4, 0, 0]}
-                  activeBar={{ fill: "#feca11", stroke: "hsl(var(--card))", strokeWidth: 2 }}
+                  activeBar={{ fill: "hsl(var(--primary))", stroke: "hsl(var(--card))", strokeWidth: 2 }}
                 >
                   <LabelList 
                     dataKey="formatted_charges" 

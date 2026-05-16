@@ -61,7 +61,7 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
     
     return (
       <div className="py-6">
-        <div className="flex flex-col items-center justify-center px-4 text-[#9a9da5] font-inter">
+        <div className="flex flex-col items-center justify-center px-4 text-muted-foreground">
           <p className="text-sm">{message}</p>
         </div>
       </div>
@@ -110,10 +110,10 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
     if (activity.type === "term_added") {
       activityDescription = (
         <>
-          <span className="font-medium text-[#191d22]">{activity.charging_user?.display_name}</span> added the term{" "}
+          <span className="font-medium text-foreground">{activity.charging_user?.display_name}</span> added the term{" "}
           <span className="italic">"{activity.jargon_term.term}"</span>
           {activity.jargon_term.description && (
-            <div className="text-xs text-[#7e828d] mt-1">
+            <div className="mt-1 text-xs text-muted-foreground">
               <span>Definition: {activity.jargon_term.description}</span>
             </div>
           )}
@@ -126,19 +126,19 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
       if (isViewingUser) {
         activityDescription = (
           <>
-            <span className="font-medium text-[#191d22]">You</span> charged <span className="font-medium text-[#191d22]">{activity.charged_user?.display_name}</span> for saying
+            <span className="font-medium text-foreground">You</span> charged <span className="font-medium text-foreground">{activity.charged_user?.display_name}</span> for saying
           </>
         )
       } else if (isReceived) {
         activityDescription = (
           <>
-            <span className="font-medium text-[#191d22]">{activity.charging_user?.display_name}</span> charged <span className="font-medium text-[#191d22]">you</span> for saying
+            <span className="font-medium text-foreground">{activity.charging_user?.display_name}</span> charged <span className="font-medium text-foreground">you</span> for saying
           </>
         )
       } else {
         activityDescription = (
           <>
-            <span className="font-medium text-[#191d22]">{activity.charging_user?.display_name}</span> charged <span className="font-medium text-[#191d22]">{activity.charged_user?.display_name}</span> for saying
+            <span className="font-medium text-foreground">{activity.charging_user?.display_name}</span> charged <span className="font-medium text-foreground">{activity.charged_user?.display_name}</span> for saying
           </>
         )
       }
@@ -148,7 +148,7 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
     const canCancel = activity.type === "made" && activity.charging_user?.id === userId
     
     return (
-      <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors duration-200 ease-in-out relative">
+      <div key={activity.id} className="relative p-4 transition-colors duration-200 ease-in-out hover:bg-muted/50">
         <div className="flex gap-3 items-start">
           <Avatar className="h-8 w-8 rounded-full">
             <AvatarImage 
@@ -165,17 +165,17 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
             </AvatarFallback>
           </Avatar>
           
-          <div className="flex-1 min-w-0 font-inter">
+          <div className="min-w-0 flex-1">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-[#191d22]">
+                <p className="text-sm text-foreground">
                   {activityDescription}
                   {activity.type !== "term_added" && (
                     <span className="italic"> "{activity.jargon_term.term}"</span>
                   )}
                 </p>
                 {activity.type !== "term_added" && (
-                  <div className="flex items-center gap-2 mt-1 text-xs text-[#7e828d]">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="font-medium">${activity.amount?.toFixed(2)}</span>
                     <span>•</span>
                     <span>{timeAgo}</span>
@@ -240,7 +240,7 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
         
         {/* Confirmation Overlay */}
         {cancelConfirmId === activity.id && (
-          <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-10 rounded transition-all duration-200 ease-in-out">
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded bg-card/95 transition-all duration-200 ease-in-out">
             <div className="p-4 text-center">
               <p className="text-sm font-medium mb-3">Going soft on corporate jargon now?</p>
               <div className="flex gap-2 justify-center">
@@ -274,15 +274,15 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
 
     return (
       <div className="flex flex-col">
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-border">
           {displayedItems.map((activity, index) => (
-            <div key={activity.id} className={index === 0 ? '' : 'border-t border-gray-100'}>
+            <div key={activity.id} className={index === 0 ? "" : "border-t border-border"}>
               {renderActivity(activity)}
             </div>
           ))}
         </div>
         {hasMore && (
-          <div className="p-4 flex justify-center border-t border-gray-100">
+          <div className="flex justify-center border-t border-border p-4">
             <Button
               variant="ghost"
               className="text-sm text-muted-foreground hover:text-foreground"
@@ -297,28 +297,28 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
   }
 
   return (
-    <div className="font-inter">
+    <div>
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="w-full bg-white border-b rounded-t-lg">
-          <TabsTrigger value="all" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
+        <TabsList className="w-full rounded-b-none border-b">
+          <TabsTrigger value="all" className="flex-1 text-sm">
             <span className="flex items-center gap-2">
               <BellIcon className="h-4 w-4" />
               All
             </span>
           </TabsTrigger>
-          <TabsTrigger value="received" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
+          <TabsTrigger value="received" className="flex-1 text-sm">
             <span className="flex items-center gap-2">
               <Skull className="h-4 w-4" />
               Times Caught
             </span>
           </TabsTrigger>
-          <TabsTrigger value="made" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
+          <TabsTrigger value="made" className="flex-1 text-sm">
             <span className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               Gotchas
             </span>
           </TabsTrigger>
-          <TabsTrigger value="terms" className="flex-1 text-sm text-[#7e828d] data-[state=active]:text-[#191d22] data-[state=active]:border-b-2 data-[state=active]:border-[#feca11]">
+          <TabsTrigger value="terms" className="flex-1 text-sm">
             <span className="flex items-center gap-2">
               <BookOpenIcon className="h-4 w-4" />
               Terms
@@ -326,7 +326,7 @@ export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFee
           </TabsTrigger>
         </TabsList>
         
-        <div className="bg-white rounded-b-lg">
+        <div className="rounded-b-lg bg-card">
           <TabsContent value="all" className="m-0">
             {activities.length > 0 ? renderActivityList(activities) : renderEmptyState("all")}
           </TabsContent>
