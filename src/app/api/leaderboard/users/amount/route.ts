@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { assertWorkspaceAccess, requireApiSession } from '@/lib/auth/guards'
+import { getLedgerRows } from '@/lib/db/queries'
+import { aggregateUserAmountLeaderboard } from '@/lib/ledger/leaderboards'
 
 export async function GET(request: Request) {
   // Get query parameters
@@ -13,29 +15,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'workspace_id is required' }, { status: 400 })
   }
 
+  const { error, session } = await requireApiSession()
+  if (error) return error
+
+  const accessError = assertWorkspaceAccess(session.workspaceId, workspaceId)
+  if (accessError) return accessError
+
   try {
-    // Create admin client to bypass RLS
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-    
-    // Get top users by total amount charged
-    const { data, error } = await supabaseAdmin.rpc('get_top_users_by_amount', { 
-      workspace_id_param: workspaceId,
-      time_period: timePeriod,
-      limit_param: limit
-    })
-    
-    if (error) {
-      console.error('Error fetching top users by amount:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch leaderboard data' },
-        { status: 500 }
-      )
-    }
-    
+    const rows = await getLedgerRows(workspaceId, timePeriod)
+    const data = aggregateUserAmountLeaderboard({ ...rows, limit })
     return NextResponse.json({ data })
   } catch (error) {
     console.error('Unexpected error in leaderboard API:', error)

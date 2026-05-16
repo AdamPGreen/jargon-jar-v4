@@ -80,10 +80,7 @@ export default async function Home({
                 </Button>
                 
                 {/* Add to Slack Button */}
-                <a
-                  href="https://slack.com/oauth/v2/authorize?client_id=7831214798177.8652143181591&scope=app_mentions:read,channels:history,chat:write,commands,groups:history,im:write,users:read,users:read.email,team:read&user_scope=identity.basic,identity.avatar,identity.email,identity.team"
-                  className="order-1 md:order-2"
-                >
+                <a href="/api/slack/install" className="order-1 md:order-2">
                   <img
                     alt="Add to your workspace"
                     height="48"
