@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { assertWorkspaceAccess, requireApiSession } from '@/lib/auth/guards'
+import { createJargonTerm, findJargonTerm, getWorkspaceMember } from '@/lib/db/queries'
 
 export async function POST(request: Request) {
   try {
@@ -14,28 +15,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Use admin client to bypass RLS
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-    
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
-    }
+    const { error: authError, session } = await requireApiSession()
+    if (authError) return authError
+
+    const accessError = assertWorkspaceAccess(session.workspaceId, workspace_id)
+    if (accessError) return accessError
 
     // Check if the term already exists for this workspace
-    const { data: existingTerm, error: existingTermError } = await supabaseAdmin
-      .from('jargon_terms')
-      .select('id')
-      .or(`workspace_id.eq.${workspace_id},workspace_id.is.null`)
-      .ilike('term', term)
-      .limit(1)
-      .single()
+    const existingTerm = await findJargonTerm({ workspaceId: workspace_id, term })
 
     if (existingTerm) {
       return NextResponse.json(
@@ -44,31 +31,29 @@ export async function POST(request: Request) {
       )
     }
 
-    // Insert the new jargon term
-    const { data, error } = await supabaseAdmin
-      .from('jargon_terms')
-      .insert({
-        term,
-        description,
-        default_cost,
-        created_by,
-        workspace_id
-      })
-      .select('id, term, description, default_cost')
-      .single()
+    const member = await getWorkspaceMember({
+      workspaceId: session.workspaceId,
+      slackUserId: session.slackUserId,
+    })
 
-    if (error) {
-      console.error('Error creating new jargon term:', error)
-      return NextResponse.json(
-        { error: 'Failed to create jargon term', details: error.message },
-        { status: 500 }
-      )
-    }
+    // Insert the new jargon term
+    const data = await createJargonTerm({
+      term,
+      description,
+      defaultCost: String(default_cost),
+      createdById: member?.id ?? created_by ?? null,
+      workspaceId: workspace_id,
+    })
 
     return NextResponse.json({
       success: true,
       message: 'Jargon term created successfully',
-      term: data
+      term: {
+        id: data.id,
+        term: data.term,
+        description: data.description,
+        default_cost: data.defaultCost,
+      }
     })
   } catch (e) {
     console.error('Unexpected error creating jargon term:', e)

@@ -8,7 +8,6 @@ import { TopSpendersLeaderboard } from "@/components/leaderboard/TopSpendersLead
 import { FrequentOffendersLeaderboard } from "@/components/leaderboard/FrequentOffendersLeaderboard"
 import { CostlyTermsLeaderboard } from "@/components/leaderboard/CostlyTermsLeaderboard"
 import { OverusedTermsLeaderboard } from "@/components/leaderboard/OverusedTermsLeaderboard"
-import { createClient } from '@/lib/supabase/client'
 
 // Filter time periods
 type TimePeriod = "all" | "month" | "week"
@@ -21,59 +20,13 @@ export default function LeaderboardPage() {
   useEffect(() => {
     const fetchWorkspaceId = async () => {
       try {
-        const supabase = createClient()
-        
-        // Get the current user
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          console.error('No authenticated user found')
+        const response = await fetch('/api/me')
+        if (!response.ok) {
+          console.error('Failed to fetch current workspace')
           return
         }
-        
-        // Find the slack_oidc identity to get the actual Slack user ID
-        const slackIdentity = user.identities?.find((id: { provider: string }) => id.provider === 'slack_oidc')
-        const slackIdentityData = slackIdentity?.identity_data as { provider_id?: string } | undefined
-        
-        // Get the Slack ID either from the identity's id field or provider_id in identity_data
-        const slackUserId = slackIdentity?.id || slackIdentityData?.provider_id
-        
-        if (!slackUserId) {
-          console.error('Could not find Slack user ID in auth identities')
-          setIsLoading(false)
-          return
-        }
-        
-        console.log('DIAGNOSTIC (Leaderboard Page): Attempting to fetch workspace ID for Slack User ID:', slackUserId);
-
-        // *** ADDED: Call helper function to check RLS context ***
-        try {
-          const { data: rlsWorkspaceId, error: rlsError } = await supabase.rpc('get_my_workspace_id');
-          if (rlsError) {
-            console.error('DIAGNOSTIC (Leaderboard Page): Error calling get_my_workspace_id():', rlsError);
-          } else {
-            console.log('DIAGNOSTIC (Leaderboard Page): RLS context workspace ID (get_my_workspace_id):', rlsWorkspaceId);
-          }
-        } catch (rpcError) {
-          console.error('DIAGNOSTIC (Leaderboard Page): Exception calling get_my_workspace_id():', rpcError);
-        }
-        // *** END ADDED CODE ***
-        
-        // Get user data to find workspace ID
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('workspace_id')
-          .eq('slack_id', slackUserId)
-          .single()
-        
-        if (userError) {
-          console.error('Error fetching user data:', userError)
-          return
-        }
-        
-        if (userData?.workspace_id) {
-          setWorkspaceId(userData.workspace_id)
-        }
+        const data = await response.json()
+        setWorkspaceId(data.workspace?.id ?? null)
       } catch (error) {
         console.error('Error fetching workspace ID:', error)
       } finally {
