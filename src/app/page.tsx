@@ -183,7 +183,7 @@ export default async function Home({
               )}
 
               {/* Primary CTA */}
-              <div className="mt-8 flex flex-col items-start gap-2">
+              <div className="mt-8">
                 <a
                   href="/api/slack/install"
                   className="group relative inline-flex items-center gap-3 whitespace-nowrap bg-[#0B0B0E] px-6 py-3.5 text-[#F2ECD9] shadow-[6px_6px_0_0_#0B0B0E] transition-transform hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[8px_8px_0_0_#FFD400] sm:px-7 sm:py-4"
@@ -201,23 +201,29 @@ export default async function Home({
                     →
                   </span>
                 </a>
-                <span
-                  className={`${plexMono.className} text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/55`}
-                >
-                  Free · installs in ~30 sec · no credit card
-                </span>
-              </div>
 
-              {/* Secondary: sign in */}
-              <a
-                href="/api/auth/signin"
-                className={`${plexMono.className} group mt-5 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[#0B0B0E]/70`}
-              >
-                Already installed?{" "}
-                <span className="underline decoration-1 underline-offset-[5px] group-hover:text-[#DC2626]">
-                  Sign in →
-                </span>
-              </a>
+                {/* sub-CTA row: trust + sign-in */}
+                <div
+                  className={`${plexMono.className} mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.18em]`}
+                >
+                  <span className="text-[#0B0B0E]/55">
+                    Free · 30-sec install
+                  </span>
+                  <span
+                    aria-hidden
+                    className="hidden h-3 w-px bg-[#0B0B0E]/25 sm:inline-block"
+                  />
+                  <a
+                    href="/api/auth/signin"
+                    className="group inline-flex items-center gap-1.5 text-[#0B0B0E]/75 hover:text-[#0B0B0E]"
+                  >
+                    Already installed?
+                    <span className="underline decoration-1 underline-offset-[5px] group-hover:text-[#DC2626]">
+                      Sign in →
+                    </span>
+                  </a>
+                </div>
+              </div>
             </div>
 
             {/* Right: monkey + receipt */}
