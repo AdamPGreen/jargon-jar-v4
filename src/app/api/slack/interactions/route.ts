@@ -4,12 +4,13 @@ import {
   createCharge,
   createJargonTerm,
   findJargonTerm,
+  getMemberChargeTotal,
   getWorkspaceBySlackTeamId,
   getWorkspaceMember,
   upsertWorkspaceMember,
 } from "@/lib/db/queries"
 import { fetchSlackUserInfo } from "@/lib/slack/api"
-import { postChargeNotification } from "@/lib/slack/notifications"
+import { postChargeConfirmation, postChargeNotification } from "@/lib/slack/notifications"
 import { verifySlackRequest } from "@/lib/slack/security"
 
 type SlackInteractionPayload = {
@@ -46,13 +47,14 @@ export async function POST(request: Request) {
   const payload = JSON.parse(payloadString) as SlackInteractionPayload
 
   if (payload.type === "view_submission" && payload.view?.callback_id === "charge_modal") {
-    return handleChargeSubmission(payload)
+    const origin = new URL(request.url).origin
+    return handleChargeSubmission(payload, origin)
   }
 
   return NextResponse.json({})
 }
 
-async function handleChargeSubmission(payload: SlackInteractionPayload) {
+async function handleChargeSubmission(payload: SlackInteractionPayload, origin: string) {
   const metadata = JSON.parse(payload.view?.private_metadata || "{}") as {
     workspace_id?: string
     channel_id?: string
@@ -131,16 +133,37 @@ async function handleChargeSubmission(payload: SlackInteractionPayload) {
     channelId: metadata.channel_id ?? "",
   })
 
-  const notification = await postChargeNotification({
-    postMessage: slack.chat.postMessage.bind(slack.chat),
-    channelId: metadata.channel_id!,
-    threadTs: metadata.thread_ts,
-    chargedSlackUserId: chargedSlackUserId!,
-    amount: amount!,
-    termName,
+  const totalOwed = await getMemberChargeTotal({
+    workspaceId: workspace.id,
+    memberId: chargedMember.id,
   })
+
+  const [notification, confirmation] = await Promise.all([
+    postChargeNotification({
+      postMessage: slack.chat.postMessage.bind(slack.chat),
+      channelId: metadata.channel_id!,
+      threadTs: metadata.thread_ts,
+      chargedSlackUserId: chargedSlackUserId!,
+      amount: amount!,
+      termName,
+      totalOwed,
+      leaderboardUrl: `${origin}/dashboard/leaderboard`,
+    }),
+    postChargeConfirmation({
+      postEphemeral: slack.chat.postEphemeral.bind(slack.chat),
+      channelId: metadata.channel_id!,
+      threadTs: metadata.thread_ts,
+      chargingSlackUserId,
+      chargedSlackUserId: chargedSlackUserId!,
+      amount: amount!,
+      termName,
+    }),
+  ])
   if (!notification.ok) {
     console.error("Slack charge notification failed:", notification.error)
+  }
+  if (!confirmation.ok) {
+    console.error("Slack charge confirmation failed:", confirmation.error)
   }
 
   return NextResponse.json({ response_action: "clear" })

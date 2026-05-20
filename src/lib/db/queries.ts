@@ -212,6 +212,23 @@ export async function createCharge(input: {
   return charge
 }
 
+export async function getMemberChargeTotal(input: {
+  workspaceId: string
+  memberId: string
+}): Promise<string> {
+  const [row] = await db
+    .select({ total: sql<string>`coalesce(sum(${charges.amount}), 0)` })
+    .from(charges)
+    .where(
+      and(
+        eq(charges.workspaceId, input.workspaceId),
+        eq(charges.chargedMemberId, input.memberId)
+      )
+    )
+
+  return row?.total ?? "0"
+}
+
 export async function getLedgerRows(workspaceId: string, timePeriod: string | null = "all") {
   const startDate = getStartDate(timePeriod)
 
