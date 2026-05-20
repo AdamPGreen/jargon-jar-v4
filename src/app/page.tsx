@@ -574,19 +574,14 @@ export default async function Home({
 
         {/* ─────────────── FOOTER ─────────────── */}
         <footer className="border-t-2 border-[#0B0B0E]">
-          <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-4 px-5 py-6 md:grid-cols-3 md:px-8">
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-3 px-5 py-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
             <div
               className={`${plexMono.className} text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60`}
             >
               © {new Date().getFullYear()} Jargon Jar · Dept. of Fines
             </div>
             <div
-              className={`${plexMono.className} text-center text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60`}
-            >
-              Built for Slack · Not affiliated with Salesforce
-            </div>
-            <div
-              className={`${plexMono.className} flex justify-start gap-4 text-[11px] uppercase tracking-[0.22em] md:justify-end`}
+              className={`${plexMono.className} flex gap-4 text-[11px] uppercase tracking-[0.22em]`}
             >
               <a href="#" className="hover:text-[#DC2626]">Privacy</a>
               <a href="#" className="hover:text-[#DC2626]">Terms</a>
