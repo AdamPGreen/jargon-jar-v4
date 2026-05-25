@@ -5,51 +5,117 @@ export default async function JargonPage() {
   const { workspace } = await requireDashboardContext()
   const jargonTerms = await listJargonTerms(workspace.id)
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Jargon Terms</h1>
-        <p className="text-muted-foreground">
-          Browse all known jargon terms and their virtual fines.
-        </p>
-      </div>
+  const workspaceTerms = jargonTerms.filter((t) => t.workspaceId)
+  const globalTerms = jargonTerms.filter((t) => !t.workspaceId)
 
-      <div className="rounded-lg border shadow-sm">
-        <div className="p-6">
-          <h2 className="text-xl font-semibold">Jargon Dictionary</h2>
-          <p className="text-sm text-muted-foreground">
-            Workspace terms and global defaults available from Slack modals.
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col items-start justify-between gap-4 border-b-2 border-[#0B0B0E] pb-5 md:flex-row md:items-end">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
+            § IV · Schedule of fines
+          </div>
+          <h1 className="font-heading mt-2 text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
+            The <span className="text-[#DC2626]">rate sheet.</span>
+          </h1>
+          <p className="mt-2 max-w-[60ch] text-[13px] text-[#0B0B0E]/75">
+            Every term {workspace.name} can be fined for. Workspace terms are editable.
+            Global defaults ship with every install.
           </p>
         </div>
-        <div className="border-t">
-          {jargonTerms.length > 0 ? (
-            <div className="divide-y">
-              {jargonTerms.map((term) => (
-                <div key={term.id} className="p-4">
-                  <div className="mb-1 flex items-center gap-2">
-                    <h3 className="font-medium">{term.term}</h3>
-                    {!term.workspaceId && (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                        Global
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-1">
-                    {term.description || "No description yet."}
-                  </p>
-                  <p className="font-bold">${Number(term.defaultCost).toFixed(2)}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-6">
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No jargon terms found.</p>
-              </div>
-            </div>
-          )}
+        <div className="font-stamp shrink-0 border-2 border-[#0B0B0E] bg-[#FFD400] px-3 py-2 text-[11px] uppercase tracking-[0.18em]">
+          {jargonTerms.length} term{jargonTerms.length === 1 ? "" : "s"} on file
         </div>
       </div>
+
+      {workspaceTerms.length > 0 && (
+        <RateSheet
+          caption="§ IV-a · Workspace edits"
+          title={`${workspace.name} additions`}
+          stamp="Custom"
+          terms={workspaceTerms}
+        />
+      )}
+
+      <RateSheet
+        caption="§ IV-b · Global defaults"
+        title="Starter rate sheet"
+        stamp="Default"
+        terms={globalTerms}
+        emptyText="No global defaults loaded."
+      />
     </div>
+  )
+}
+
+type Term = {
+  id: string
+  term: string
+  description: string | null
+  defaultCost: string
+  workspaceId: string | null
+}
+
+function RateSheet({
+  caption,
+  title,
+  stamp,
+  terms,
+  emptyText = "No terms yet.",
+}: {
+  caption: string
+  title: string
+  stamp: string
+  terms: Term[]
+  emptyText?: string
+}) {
+  return (
+    <section className="border-2 border-[#0B0B0E] bg-white receipt-shadow">
+      <div className="flex items-center justify-between border-b-2 border-[#0B0B0E] px-4 py-3">
+        <div>
+          <div className="font-stamp text-[11px] uppercase tracking-[0.2em] text-[#0B0B0E]">
+            {caption}
+          </div>
+          <div className="font-stamp mt-[2px] text-[14px] uppercase tracking-[0.06em]">
+            {title}
+          </div>
+        </div>
+        <span className="font-stamp bg-[#0B0B0E] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-[#FFD400]">
+          {stamp}
+        </span>
+      </div>
+
+      {terms.length === 0 ? (
+        <div className="px-4 py-10 text-center text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/55">
+          {emptyText}
+        </div>
+      ) : (
+        <ul className="grid grid-cols-1 gap-x-10 px-4 md:grid-cols-2">
+          {terms.map((term, i) => (
+            <li
+              key={term.id}
+              className="group grid grid-cols-[auto_1fr_auto] items-baseline gap-3 border-b border-dotted border-[#0B0B0E]/35 py-3 last:border-b-0 md:py-4"
+            >
+              <span className="font-stamp hidden w-7 shrink-0 text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/40 sm:inline-block">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div className="min-w-0">
+                <div className="font-heading truncate text-[20px] uppercase leading-[1.05] tracking-[-0.005em] transition-colors group-hover:text-[#DC2626] md:text-[24px]">
+                  {term.term}
+                </div>
+                {term.description && (
+                  <p className="mt-1 text-[12px] text-[#0B0B0E]/70">
+                    {term.description}
+                  </p>
+                )}
+              </div>
+              <span className="font-stamp shrink-0 text-right text-[15px] md:text-[16px]">
+                ${Number(term.defaultCost).toFixed(2)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

@@ -1,9 +1,4 @@
-/**
- * Format cents to dollars with $ sign
- * @param cents Amount in cents
- */
-export const formatCurrency = (cents: number): string => {
-  const dollars = cents / 100;
+export const formatCurrency = (dollars: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',

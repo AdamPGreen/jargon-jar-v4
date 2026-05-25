@@ -1,28 +1,22 @@
-import type { Metadata } from "next";
-import { GeistSans, GeistMono } from 'geist/font';
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/montserrat/600.css";
-import "@fontsource/montserrat/700.css";
-import "./globals.css";
+import type { Metadata } from "next"
+import { receiptFontVariables } from "@/lib/fonts"
+import "./globals.css"
 
-const metadata: Metadata = {
+export const metadata: Metadata = {
   title: "Jargon Jar",
   description: "A virtual swear jar for corporate jargon",
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
-      >
+    <html lang="en" className={receiptFontVariables}>
+      <body className="bg-[#F2ECD9] text-[#0B0B0E] antialiased">
         {children}
       </body>
     </html>
-  );
+  )
 }

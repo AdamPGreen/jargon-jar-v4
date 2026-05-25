@@ -1,18 +1,4 @@
-"use client"
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrophyIcon } from "lucide-react"
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip as RechartsTooltip, 
-  ResponsiveContainer, 
-  LabelList 
-} from 'recharts';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 type JargonUser = {
   id: string
@@ -21,178 +7,88 @@ type JargonUser = {
   total_charges: number
   jargon_count?: number
   favorite_phrase?: string
-  rank?: number
 }
 
 interface HallOfShameProps {
   topUsers: JargonUser[]
 }
 
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+}
+
 export function HallOfShame({ topUsers }: HallOfShameProps) {
-  // Find the top user with the highest charges - This might not be needed anymore depending on final design
-  const topUser = topUsers.length > 0 
-    ? topUsers.reduce((max, user) => max.total_charges > user.total_charges ? max : user) 
-    : null;
-  
-  // Format charges for display
-  const formattedTopUsers = topUsers.map((user, index) => ({
-    ...user,
-    formatted_charges: `$${user.total_charges.toFixed(2)}`,
-    rank: index + 1
-  }));
+  const ranked = [...topUsers]
+    .sort((a, b) => b.total_charges - a.total_charges)
+    .slice(0, 5)
 
-  const getRankMessage = (rank: number, total: number) => {
-    if (rank === 1) return "The undisputed champion of corporate speak!";
-    if (rank === 2) return "So close to the jargon throne! Keep trying?";
-    if (rank <= Math.ceil(total / 2)) return "Mid-tier buzzword offender. Going for promotion?";
-    if (rank === total) return "Congratulations on basic communication skills!";
-    return "Almost speaking like a normal human!";
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase();
-  };
+  const max = ranked[0]?.total_charges ?? 0
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
-          Hall of Shame
-        </CardTitle>
-        <TrophyIcon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {formattedTopUsers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No jargon charges yet</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart 
-                data={formattedTopUsers}
-                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                barCategoryGap="20%"
-                style={{ cursor: 'pointer' }}
-              >
-                <XAxis 
-                  dataKey="display_name" 
-                  type="category" 
-                  axisLine={true} 
-                  tickLine={false}
-                  tick={(props) => {
-                    const { x, y, payload } = props;
-                    const user = formattedTopUsers.find(u => u.display_name === payload.value);
-                    
-                    return (
-                      <g transform={`translate(${x},${y})`}>
-                        <foreignObject 
-                          x={-12} 
-                          y={8} 
-                          width={24} 
-                          height={24}
-                        >
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={user?.avatar_url || undefined} alt={payload.value} />
-                            <AvatarFallback>{getInitials(payload.value)}</AvatarFallback>
-                          </Avatar>
-                        </foreignObject>
-                        <text 
-                          x={0} 
-                          y={0} 
-                          dy={46} 
-                          textAnchor="middle"
-                          fontSize={12}
-                          fontWeight="500"
-                          fill="currentColor"
-                        >
-                          {payload.value}
-                        </text>
-                      </g>
-                    );
-                  }}
-                  height={80}
-                />
-                <YAxis 
-                  type="number" 
-                  axisLine={false} 
-                  tickLine={false}
-                  tick={{ fontSize: 12 }}
-                />
-                <RechartsTooltip 
-                  wrapperStyle={{ outline: 'none' }}
-                  position={{ y: -12 }}
-                  allowEscapeViewBox={{ x: true, y: true }}
-                  cursor={{ fill: 'transparent' }}
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const user = payload[0].payload as JargonUser & { 
-                        formatted_charges: string, 
-                        rank: number 
-                      };
-                      
-                      return (
-                        <div 
-                          className="z-50 max-w-[250px] animate-in rounded-lg border bg-card p-3 text-card-foreground shadow-md fade-in-50 slide-in-from-bottom-1 duration-200"
-                          style={{ animation: 'fadeIn 150ms ease-out' }}
-                        >
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={user.avatar_url || undefined} alt={user.display_name} />
-                              <AvatarFallback>{getInitials(user.display_name)}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-bold text-foreground">
-                              {user.display_name}
-                            </span>
-                          </div>
-                          
-                          <div className="space-y-2 text-sm">
-                            <div className="font-medium">
-                              Total charged: <span className="font-bold">{user.formatted_charges}</span>
-                            </div>
-                            {user.jargon_count !== undefined && (
-                              <div>
-                                Jargon count: <span className="font-medium">{user.jargon_count} uses</span>
-                              </div>
-                            )}
-                            {user.favorite_phrase && (
-                              <div>
-                                Favorite phrase: <span className="italic">"{user.favorite_phrase}"</span>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className={cn(
-                            "mt-2 text-sm",
-                            user.rank === 1 ? "font-medium text-destructive" : "text-muted-foreground"
-                          )}>
-                            {getRankMessage(user.rank, formattedTopUsers.length)}
-                          </div>
-                        </div>
-                      );
+    <div className="relative flex flex-col border-2 border-[#0B0B0E] bg-white receipt-shadow">
+      <div className="flex items-center justify-between border-b border-dashed border-[#0B0B0E]/40 px-4 py-2">
+        <span className="font-stamp text-[11px] uppercase tracking-[0.2em] text-[#0B0B0E]">
+          Hall of shame
+        </span>
+        <span className="font-stamp bg-[#DC2626] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-[#F2ECD9]">
+          Top offenders
+        </span>
+      </div>
+
+      <div className="flex-1 px-4 py-5">
+        {ranked.length === 0 ? (
+          <p className="py-6 text-center text-[12px] uppercase tracking-[0.18em] text-[#0B0B0E]/50">
+            No citations issued yet
+          </p>
+        ) : (
+          <ol className="space-y-3">
+            {ranked.map((user, i) => {
+              const rank = i + 1
+              const pct = max > 0 ? Math.max(0.04, user.total_charges / max) : 0
+              return (
+                <li key={user.id} className="flex items-center gap-3">
+                  <span
+                    className={
+                      rank === 1
+                        ? "font-stamp inline-flex h-6 w-7 shrink-0 items-center justify-center bg-[#DC2626] text-[11px] uppercase tracking-[0.04em] text-[#F2ECD9]"
+                        : "font-stamp inline-flex h-6 w-7 shrink-0 items-center justify-center border border-[#0B0B0E]/30 text-[11px] uppercase tracking-[0.04em] text-[#0B0B0E]/60"
                     }
-                    return null;
-                  }}
-                />
-                <Bar 
-                  dataKey="total_charges" 
-                  fill="hsl(var(--primary))" 
-                  radius={[4, 4, 0, 0]}
-                  activeBar={{ fill: "hsl(var(--primary))", stroke: "hsl(var(--card))", strokeWidth: 2 }}
-                >
-                  <LabelList 
-                    dataKey="formatted_charges" 
-                    position="top" 
-                    style={{ fill: 'hsl(var(--foreground))', fontSize: 12 }} 
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+                  >
+                    {String(rank).padStart(2, "0")}
+                  </span>
+                  <Avatar className="h-8 w-8 border-2 border-[#0B0B0E] bg-[#FFD400]">
+                    <AvatarImage src={user.avatar_url ?? undefined} alt={user.display_name} />
+                    <AvatarFallback className="bg-[#FFD400] text-[#0B0B0E] font-stamp text-[10px]">
+                      {initials(user.display_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate font-stamp text-[12px] uppercase tracking-[0.06em]">
+                        {user.display_name}
+                      </span>
+                      <span className="font-stamp shrink-0 text-[13px]">
+                        ${user.total_charges.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="mt-1 h-[6px] w-full border border-[#0B0B0E]/40 bg-white">
+                      <div
+                        className={`h-full ${rank === 1 ? "bg-[#DC2626]" : "bg-[#0B0B0E]"}`}
+                        style={{ width: `${pct * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
+        )}
+      </div>
+    </div>
   )
-} 
+}

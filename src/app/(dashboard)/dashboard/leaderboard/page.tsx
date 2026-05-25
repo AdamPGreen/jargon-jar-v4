@@ -1,16 +1,32 @@
 "use client"
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { DollarSignIcon, RepeatIcon, ZapIcon, TrendingUpIcon } from "lucide-react"
 import { useState, useEffect } from "react"
+import { DollarSignIcon, RepeatIcon, ZapIcon, TrendingUpIcon } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TopSpendersLeaderboard } from "@/components/leaderboard/TopSpendersLeaderboard"
 import { FrequentOffendersLeaderboard } from "@/components/leaderboard/FrequentOffendersLeaderboard"
 import { CostlyTermsLeaderboard } from "@/components/leaderboard/CostlyTermsLeaderboard"
 import { OverusedTermsLeaderboard } from "@/components/leaderboard/OverusedTermsLeaderboard"
 
-// Filter time periods
 type TimePeriod = "all" | "month" | "week"
+
+const PERIOD_OPTIONS: { value: TimePeriod; label: string }[] = [
+  { value: "all", label: "All time" },
+  { value: "month", label: "30 days" },
+  { value: "week", label: "7 days" },
+]
+
+const TAB_OPTIONS: {
+  value: string
+  label: string
+  short: string
+  icon: typeof DollarSignIcon
+}[] = [
+  { value: "top-spenders", label: "Top spenders", short: "Spenders", icon: DollarSignIcon },
+  { value: "frequent-offenders", label: "Repeat offenders", short: "Repeat", icon: RepeatIcon },
+  { value: "costly-terms", label: "Costliest terms", short: "Costly", icon: ZapIcon },
+  { value: "overused-terms", label: "Most overused", short: "Overused", icon: TrendingUpIcon },
+]
 
 export default function LeaderboardPage() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all")
@@ -18,116 +34,109 @@ export default function LeaderboardPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchWorkspaceId = async () => {
+    let cancelled = false
+    const run = async () => {
       try {
-        const response = await fetch('/api/me')
-        if (!response.ok) {
-          console.error('Failed to fetch current workspace')
-          return
-        }
-        const data = await response.json()
+        const res = await fetch("/api/me")
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
         setWorkspaceId(data.workspace?.id ?? null)
-      } catch (error) {
-        console.error('Error fetching workspace ID:', error)
       } finally {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       }
     }
-    
-    fetchWorkspaceId()
+    run()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-5 border-b-2 border-[#0B0B0E] pb-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">Hall of Shame</h1>
-          <p className="text-muted-foreground">
-            Who's been caught using the most corporate jargon?
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
+            § III · Public record
+          </div>
+          <h1 className="font-heading mt-2 text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
+            Hall of <span className="text-[#DC2626]">shame.</span>
+          </h1>
+          <p className="mt-2 text-[13px] text-[#0B0B0E]/75">
+            Who's been writing the biggest cheques to the jar.
           </p>
         </div>
 
-        {/* Time period filter */}
-        <div className="flex space-x-2">
-          <Button
-            variant={timePeriod === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTimePeriod("all")}
-            className={timePeriod === "all" ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
-          >
-            All Time
-          </Button>
-          <Button
-            variant={timePeriod === "month" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTimePeriod("month")}
-            className={timePeriod === "month" ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
-          >
-            This Month
-          </Button>
-          <Button
-            variant={timePeriod === "week" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTimePeriod("week")}
-            className={timePeriod === "week" ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
-          >
-            This Week
-          </Button>
+        <div className="flex items-center gap-0 border-2 border-[#0B0B0E] bg-white p-[2px]">
+          {PERIOD_OPTIONS.map((opt) => {
+            const active = timePeriod === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTimePeriod(opt.value)}
+                className={`font-stamp px-3 py-2 text-[10px] uppercase tracking-[0.18em] transition-colors md:text-[11px] ${
+                  active
+                    ? "bg-[#0B0B0E] text-[#FFD400]"
+                    : "bg-transparent text-[#0B0B0E]/70 hover:text-[#0B0B0E]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {/* Main tabs interface */}
       {isLoading ? (
-        <div className="h-[400px] flex items-center justify-center">
-          <p className="text-muted-foreground">Loading leaderboard data...</p>
+        <div className="flex h-[400px] items-center justify-center border-2 border-[#0B0B0E] bg-white">
+          <p className="font-stamp text-[12px] uppercase tracking-[0.22em] text-[#0B0B0E]/55">
+            Pulling the docket…
+          </p>
         </div>
       ) : !workspaceId ? (
-        <div className="h-[400px] flex items-center justify-center">
-          <p className="text-red-500">Failed to load workspace data</p>
+        <div className="flex h-[400px] items-center justify-center border-2 border-[#DC2626] bg-[#FFE7E1]">
+          <p className="font-stamp text-[12px] uppercase tracking-[0.22em] text-[#DC2626]">
+            Failed to load workspace
+          </p>
         </div>
       ) : (
         <Tabs defaultValue="top-spenders" className="w-full">
-          <TabsList className="grid grid-cols-2 md:grid-cols-4 mb-4">
-            <TabsTrigger value="top-spenders" className="flex items-center gap-2">
-              <DollarSignIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Top Spenders</span>
-              <span className="sm:hidden">Spenders</span>
-            </TabsTrigger>
-            <TabsTrigger value="frequent-offenders" className="flex items-center gap-2">
-              <RepeatIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Frequent Offenders</span>
-              <span className="sm:hidden">Frequent</span>
-            </TabsTrigger>
-            <TabsTrigger value="costly-terms" className="flex items-center gap-2">
-              <ZapIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Costly Terms</span>
-              <span className="sm:hidden">Costly</span>
-            </TabsTrigger>
-            <TabsTrigger value="overused-terms" className="flex items-center gap-2">
-              <TrendingUpIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Overused Terms</span>
-              <span className="sm:hidden">Overused</span>
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 gap-0 rounded-none border-2 border-[#0B0B0E] bg-white p-0 md:grid-cols-4">
+            {TAB_OPTIONS.map((opt, i) => {
+              const Icon = opt.icon
+              return (
+                <TabsTrigger
+                  key={opt.value}
+                  value={opt.value}
+                  className={`font-stamp rounded-none px-3 py-3 text-[10px] uppercase tracking-[0.18em] text-[#0B0B0E]/70 data-[state=active]:bg-[#0B0B0E] data-[state=active]:text-[#FFD400] md:text-[11px] ${
+                    i < TAB_OPTIONS.length - 1 ? "border-r-2 border-[#0B0B0E]" : ""
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Icon className="h-3 w-3" />
+                    <span className="hidden sm:inline">{opt.label}</span>
+                    <span className="sm:hidden">{opt.short}</span>
+                  </span>
+                </TabsTrigger>
+              )
+            })}
           </TabsList>
 
-          {/* Tab content */}
-          <TabsContent value="top-spenders">
+          <TabsContent value="top-spenders" className="mt-6">
             <TopSpendersLeaderboard workspaceId={workspaceId} timePeriod={timePeriod} />
           </TabsContent>
-
-          <TabsContent value="frequent-offenders">
+          <TabsContent value="frequent-offenders" className="mt-6">
             <FrequentOffendersLeaderboard workspaceId={workspaceId} timePeriod={timePeriod} />
           </TabsContent>
-
-          <TabsContent value="costly-terms">
+          <TabsContent value="costly-terms" className="mt-6">
             <CostlyTermsLeaderboard workspaceId={workspaceId} timePeriod={timePeriod} />
           </TabsContent>
-
-          <TabsContent value="overused-terms">
+          <TabsContent value="overused-terms" className="mt-6">
             <OverusedTermsLeaderboard workspaceId={workspaceId} timePeriod={timePeriod} />
           </TabsContent>
         </Tabs>
       )}
     </div>
   )
-} 
+}
