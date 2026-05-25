@@ -6,7 +6,7 @@ import {
 } from "./notifications"
 
 describe("Slack notifications", () => {
-  it("posts a Block Kit charge receipt with running total and leaderboard link", async () => {
+  it("posts a Block Kit charge receipt with running total, receipt and leaderboard links", async () => {
     const postMessage = vi.fn().mockResolvedValue({ ok: true })
 
     const result = await postChargeNotification({
@@ -18,6 +18,7 @@ describe("Slack notifications", () => {
       termName: "synergy",
       totalOwed: "47",
       leaderboardUrl: "https://jargonjar.app/dashboard/leaderboard",
+      receiptUrl: "https://jargonjar.app/receipt/abc-123",
     })
 
     expect(result).toEqual({ ok: true })
@@ -33,6 +34,23 @@ describe("Slack notifications", () => {
     expect(blockJson).toContain("synergy")
     expect(blockJson).toContain("$47.00")
     expect(blockJson).toContain("https://jargonjar.app/dashboard/leaderboard")
+    expect(blockJson).toContain("https://jargonjar.app/receipt/abc-123")
+
+    const actions = call.blocks.find((block: { type: string }) => block.type === "actions")
+    expect(actions.elements).toHaveLength(2)
+    const receiptButton = actions.elements.find(
+      (element: { action_id?: string }) => element.action_id === "view_receipt"
+    )
+    expect(receiptButton).toBeDefined()
+    expect(receiptButton.url).toBe("https://jargonjar.app/receipt/abc-123")
+    expect(receiptButton.text.text).toBe("View receipt")
+    expect(receiptButton.style).toBe("primary")
+
+    const leaderboardButton = actions.elements.find(
+      (element: { action_id?: string }) => element.action_id === "view_leaderboard"
+    )
+    expect(leaderboardButton).toBeDefined()
+    expect(leaderboardButton.url).toBe("https://jargonjar.app/dashboard/leaderboard")
   })
 
   it("returns a failure result instead of throwing when a charge notification cannot be posted", async () => {
@@ -47,6 +65,7 @@ describe("Slack notifications", () => {
       termName: "Synergy",
       totalOwed: "1.00",
       leaderboardUrl: "https://jargonjar.app/dashboard/leaderboard",
+      receiptUrl: "https://jargonjar.app/receipt/abc-123",
     })
 
     expect(result).toEqual({ ok: false, error: "channel_not_found" })
@@ -97,6 +116,7 @@ describe("Slack notifications", () => {
       termName: "circle back",
       totalOwed: "10",
       leaderboardUrl: "https://example.com/lb",
+      receiptUrl: "https://example.com/receipt/abc",
     })
 
     expect(blocks).toHaveLength(3)

@@ -23,6 +23,7 @@ type ChargeNotificationInput = {
   termName: string
   totalOwed: string
   leaderboardUrl: string
+  receiptUrl: string
 }
 
 type ChargeConfirmationInput = {
@@ -47,6 +48,7 @@ export function buildChargeBlocks(input: {
   termName: string
   totalOwed: string
   leaderboardUrl: string
+  receiptUrl: string
 }): KnownBlock[] {
   const fine = formatMoney(input.amount)
   const total = formatMoney(input.totalOwed)
@@ -73,6 +75,13 @@ export function buildChargeBlocks(input: {
       elements: [
         {
           type: "button",
+          text: { type: "plain_text", text: "View receipt" },
+          url: input.receiptUrl,
+          action_id: "view_receipt",
+          style: "primary",
+        },
+        {
+          type: "button",
           text: { type: "plain_text", text: "View leaderboard" },
           url: input.leaderboardUrl,
           action_id: "view_leaderboard",
@@ -91,6 +100,7 @@ export async function postChargeNotification({
   termName,
   totalOwed,
   leaderboardUrl,
+  receiptUrl,
 }: ChargeNotificationInput): Promise<NotificationResult> {
   try {
     await postMessage({
@@ -103,6 +113,7 @@ export async function postChargeNotification({
         termName,
         totalOwed,
         leaderboardUrl,
+        receiptUrl,
       }),
     })
 

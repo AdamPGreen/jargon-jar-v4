@@ -122,7 +122,7 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     })
   }
 
-  await createCharge({
+  const charge = await createCharge({
     workspaceId: workspace.id,
     chargedMemberId: chargedMember.id,
     chargingMemberId: chargingMember.id,
@@ -138,6 +138,8 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     memberId: chargedMember.id,
   })
 
+  const baseUrl = origin || process.env.APP_BASE_URL || ""
+
   const [notification, confirmation] = await Promise.all([
     postChargeNotification({
       postMessage: slack.chat.postMessage.bind(slack.chat),
@@ -147,7 +149,8 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
       amount: amount!,
       termName,
       totalOwed,
-      leaderboardUrl: `${origin}/dashboard/leaderboard`,
+      leaderboardUrl: `${baseUrl}/dashboard/leaderboard`,
+      receiptUrl: `${baseUrl}/receipt/${charge.id}`,
     }),
     postChargeConfirmation({
       postEphemeral: slack.chat.postEphemeral.bind(slack.chat),
