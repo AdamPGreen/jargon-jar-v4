@@ -1,6 +1,6 @@
 # Jargon Jar
 
-Jargon Jar is a Slack app that acts like a virtual swear jar for corporate jargon. Teammates can use `/charge` to fine each other fake money, add new jargon terms, and view dashboard leaderboards for the worst offenders.
+Jargon Jar is a Slack app that acts like a virtual swear jar for corporate jargon. Teammates can use `/jargon` to fine each other fake money, add new jargon terms, and view dashboard leaderboards for the worst offenders.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Jargon Jar is a Slack app that acts like a virtual swear jar for corporate jargo
 
 - Add the app to a Slack workspace
 - Sign in to the dashboard with Slack identity
-- Use `/charge` to open a Slack modal and create a virtual charge
+- Use `/jargon` to open a Slack modal and create a virtual charge
 - Reuse existing jargon terms or add a custom term from the modal
 - Track workspace totals, user totals, activity, and leaderboards
 

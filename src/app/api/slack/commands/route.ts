@@ -1,6 +1,6 @@
 import { WebClient, type ModalView } from "@slack/web-api"
 import { NextResponse } from "next/server"
-import { getWorkspaceBySlackTeamId, listJargonTerms } from "@/lib/db/queries"
+import { getWorkspaceBySlackTeamId } from "@/lib/db/queries"
 import { verifySlackRequest } from "@/lib/slack/security"
 
 export async function POST(request: Request) {
@@ -11,7 +11,6 @@ export async function POST(request: Request) {
 
   const formData = new URLSearchParams(body)
   const command = formData.get("command")
-  const text = formData.get("text")?.trim() ?? ""
   const triggerId = formData.get("trigger_id")
   const channelId = formData.get("channel_id")
   const teamId = formData.get("team_id")
@@ -30,16 +29,7 @@ export async function POST(request: Request) {
     })
   }
 
-  const [subcommand, ...args] = text.split(/\s+/)
-  if (subcommand === "help") {
-    return NextResponse.json({
-      response_type: "ephemeral",
-      text: `Use ${command} to charge someone for corporate jargon. Try ${command} charge or just ${command}.`,
-    })
-  }
-
   const slack = new WebClient(workspace.installation.botToken)
-  const terms = await listJargonTerms(workspace.id)
 
   await slack.views.open({
     trigger_id: triggerId,
@@ -47,9 +37,7 @@ export async function POST(request: Request) {
       workspaceId: workspace.id,
       channelId,
       chargingSlackUserId: userId,
-      initialPhrase: args.join(" "),
       threadTs,
-      terms,
     }),
   })
 
@@ -60,13 +48,7 @@ function buildChargeModal(input: {
   workspaceId: string
   channelId: string
   chargingSlackUserId: string
-  initialPhrase: string
   threadTs: string | null
-  terms: Array<{
-    id: string
-    term: string
-    defaultCost: string
-  }>
 }): ModalView {
   return {
     type: "modal",
@@ -86,56 +68,21 @@ function buildChargeModal(input: {
         block_id: "charged_user",
         label: { type: "plain_text", text: "Who said it?" },
         element: {
-          type: "users_select",
+          type: "external_select",
           action_id: "value",
-          placeholder: { type: "plain_text", text: "Select a teammate" },
+          placeholder: { type: "plain_text", text: "Search teammates" },
+          min_query_length: 0,
         },
       },
       {
         type: "input",
         block_id: "jargon_term",
-        optional: true,
-        label: { type: "plain_text", text: "Existing jargon term" },
+        label: { type: "plain_text", text: "Jargon term" },
         element: {
-          type: "static_select",
+          type: "external_select",
           action_id: "value",
-          placeholder: { type: "plain_text", text: "Pick a term" },
-          options: [
-            {
-              text: { type: "plain_text", text: "Use custom term below" },
-              value: "__custom__",
-            },
-            ...input.terms.slice(0, 99).map((term) => ({
-              text: {
-                type: "plain_text" as const,
-                text: `${term.term} ($${Number(term.defaultCost).toFixed(2)})`,
-              },
-              value: term.id,
-            })),
-          ],
-        },
-      },
-      {
-        type: "input",
-        block_id: "custom_term",
-        optional: true,
-        label: { type: "plain_text", text: "Or add a new term" },
-        element: {
-          type: "plain_text_input",
-          action_id: "value",
-          initial_value: input.initialPhrase,
-          placeholder: { type: "plain_text", text: "e.g. synergy" },
-        },
-      },
-      {
-        type: "input",
-        block_id: "amount",
-        label: { type: "plain_text", text: "Virtual fine" },
-        element: {
-          type: "plain_text_input",
-          action_id: "value",
-          initial_value: "1.00",
-          placeholder: { type: "plain_text", text: "1.00" },
+          placeholder: { type: "plain_text", text: "Type to search or add a new term" },
+          min_query_length: 1,
         },
       },
       {

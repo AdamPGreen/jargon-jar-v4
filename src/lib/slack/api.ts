@@ -115,6 +115,73 @@ export async function fetchSlackUserInfo(botToken: string, userId: string) {
   }
 }
 
+type SlackUsersListResponse = {
+  ok: boolean
+  error?: string
+  members?: Array<{
+    id: string
+    deleted?: boolean
+    is_bot?: boolean
+    is_app_user?: boolean
+    is_restricted?: boolean
+    is_ultra_restricted?: boolean
+    name?: string
+    real_name?: string
+    profile?: {
+      display_name?: string
+      real_name?: string
+      image_72?: string
+    }
+  }>
+  response_metadata?: { next_cursor?: string }
+}
+
+export type SlackHuman = {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+export async function listSlackHumans(botToken: string): Promise<SlackHuman[]> {
+  const humans: SlackHuman[] = []
+  let cursor: string | undefined
+
+  do {
+    const url = new URL("https://slack.com/api/users.list")
+    url.searchParams.set("limit", "200")
+    if (cursor) url.searchParams.set("cursor", cursor)
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${botToken}` },
+    })
+    const data = (await response.json()) as SlackUsersListResponse
+    if (!data.ok || !data.members) {
+      throw new Error(data.error ?? "Slack users.list failed")
+    }
+
+    for (const m of data.members) {
+      if (m.deleted) continue
+      if (m.is_bot) continue
+      if (m.is_app_user) continue
+      if (m.id === "USLACKBOT") continue
+      humans.push({
+        id: m.id,
+        displayName:
+          m.profile?.display_name?.trim() ||
+          m.profile?.real_name?.trim() ||
+          m.real_name ||
+          m.name ||
+          m.id,
+        avatarUrl: m.profile?.image_72 ?? null,
+      })
+    }
+
+    cursor = data.response_metadata?.next_cursor || undefined
+  } while (cursor)
+
+  return humans.sort((a, b) => a.displayName.localeCompare(b.displayName))
+}
+
 export async function fetchSlackIdentity(userToken: string) {
   const response = await fetch("https://slack.com/api/users.identity", {
     headers: { Authorization: `Bearer ${userToken}` },

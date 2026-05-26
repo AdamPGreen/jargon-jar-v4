@@ -1,18 +1,14 @@
 "use client"
 
-import Link from "next/link"
 import { type ReactNode, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { BellIcon, DollarSignIcon, HandCoinsIcon, BookOpenIcon, PencilIcon, AlertCircle, Skull, Eye, XIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { BookOpenIcon, ScrollIcon, EyeIcon, Skull, XIcon } from "lucide-react"
 
-// Define types for activity items
 export type ActivityItem = {
   id: string
-  type: "received" | "made" | "term_added" // For determining if you were charged, you charged someone, or a term was added
+  type: "received" | "made" | "term_added"
   charging_user?: {
     id: string
     display_name: string
@@ -31,319 +27,291 @@ export type ActivityItem = {
   amount?: number
   channel_id?: string
   channel_name?: string
-  category?: string | null // The tag like #marketing, #engineering
+  category?: string | null
   created_at: string
 }
 
 type ActivityFeedProps = {
   activities: ActivityItem[]
-  userId: string // The current user's ID
+  userId: string
   onCancelCharge?: (chargeId: string) => void
 }
 
-const ITEMS_PER_PAGE = 5
+const ITEMS_PER_PAGE = 8
+
+function initials(name?: string) {
+  if (!name) return "?"
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+}
 
 export function ActivityFeed({ activities, userId, onCancelCharge }: ActivityFeedProps) {
   const [visibleItems, setVisibleItems] = useState(ITEMS_PER_PAGE)
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null)
 
-  // Helper function to render empty state for a specific tab
   const renderEmptyState = (type: string) => {
-    let message = "No corporate speak here. Refreshing, isn't it?"
-    
-    if (type === "received") {
-      message = "No jargon charges yet. Keep that corporate speak in check!"
-    } else if (type === "made") {
-      message = "You haven't caught any corporate jargon yet. Stay vigilant!"
-    } else if (type === "terms") {
-      message = "No jargon terms added yet. Time to expand our corporate dictionary!"
-    }
-    
+    const message =
+      type === "received"
+        ? "No fines on your record. Suspicious."
+        : type === "made"
+          ? "You haven't issued a single citation. Pacifist."
+          : type === "terms"
+            ? "No new terms yet. Add one in Slack."
+            : "Quiet day at the department."
     return (
-      <div className="py-6">
-        <div className="flex flex-col items-center justify-center px-4 text-muted-foreground">
-          <p className="text-sm">{message}</p>
-        </div>
+      <div className="px-4 py-10 text-center text-[12px] uppercase tracking-[0.18em] text-[#0B0B0E]/55">
+        {message}
       </div>
     )
   }
 
   if (!activities || activities.length === 0) {
-    return renderEmptyState("all");
+    return (
+      <div>
+        <ActivityTabsList />
+        {renderEmptyState("all")}
+      </div>
+    )
   }
 
-  // Filter activities based on type
-  const receivedActivities = activities.filter(item => item.charged_user?.id === userId)
-  const madeActivities = activities.filter(item => 
-    item.charging_user?.id === userId && 
-    item.charged_user?.id !== userId &&
-    item.type !== "term_added"
+  const receivedActivities = activities.filter(
+    (item) => item.charged_user?.id === userId
   )
-  const termAddedActivities = activities.filter(item => item.type === "term_added")
+  const madeActivities = activities.filter(
+    (item) =>
+      item.charging_user?.id === userId &&
+      item.charged_user?.id !== userId &&
+      item.type !== "term_added"
+  )
+  const termAddedActivities = activities.filter((item) => item.type === "term_added")
 
-  const loadMore = () => {
-    setVisibleItems(prev => prev + ITEMS_PER_PAGE)
-  }
-
-  const handleCancelClick = (id: string) => {
-    setCancelConfirmId(id)
-  }
-
-  const handleConfirmCancel = (id: string) => {
-    if (onCancelCharge) {
-      onCancelCharge(id)
-    }
-    setCancelConfirmId(null)
-  }
-
-  const handleCancelCancel = () => {
-    setCancelConfirmId(null)
-  }
-
-  // Helper function to render activity item
   const renderActivity = (activity: ActivityItem) => {
     const timeAgo = formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })
-    
-    // Build the activity description based on type
-    let activityDescription: ReactNode
-    
+
+    let stamp: { label: string; bg: string; fg: string }
+    let body: ReactNode
+
     if (activity.type === "term_added") {
-      activityDescription = (
+      stamp = { label: "Term", bg: "bg-[#0B0B0E]", fg: "text-[#FFD400]" }
+      body = (
         <>
-          <span className="font-medium text-foreground">{activity.charging_user?.display_name}</span> added the term{" "}
+          <span className="font-stamp uppercase tracking-[0.04em]">
+            {activity.charging_user?.display_name}
+          </span>{" "}
+          added{" "}
           <span className="italic">"{activity.jargon_term.term}"</span>
           {activity.jargon_term.description && (
-            <div className="mt-1 text-xs text-muted-foreground">
-              <span>Definition: {activity.jargon_term.description}</span>
-            </div>
+            <span className="ml-2 text-[#0B0B0E]/55">
+              · {activity.jargon_term.description}
+            </span>
           )}
         </>
       )
     } else {
       const isReceived = activity.charged_user?.id === userId
       const isViewingUser = activity.charging_user?.id === userId
-      
+
       if (isViewingUser) {
-        activityDescription = (
+        stamp = { label: "Gotcha", bg: "bg-[#FFD400]", fg: "text-[#0B0B0E]" }
+        body = (
           <>
-            <span className="font-medium text-foreground">You</span> charged <span className="font-medium text-foreground">{activity.charged_user?.display_name}</span> for saying
+            <span className="font-stamp uppercase tracking-[0.04em]">You</span> fined{" "}
+            <span className="font-stamp uppercase tracking-[0.04em]">
+              {activity.charged_user?.display_name}
+            </span>{" "}
+            for <span className="italic">"{activity.jargon_term.term}"</span>
           </>
         )
       } else if (isReceived) {
-        activityDescription = (
+        stamp = { label: "Caught", bg: "bg-[#DC2626]", fg: "text-[#F2ECD9]" }
+        body = (
           <>
-            <span className="font-medium text-foreground">{activity.charging_user?.display_name}</span> charged <span className="font-medium text-foreground">you</span> for saying
+            <span className="font-stamp uppercase tracking-[0.04em]">
+              {activity.charging_user?.display_name}
+            </span>{" "}
+            fined <span className="font-stamp uppercase tracking-[0.04em]">you</span> for{" "}
+            <span className="italic">"{activity.jargon_term.term}"</span>
           </>
         )
       } else {
-        activityDescription = (
+        stamp = { label: "Cited", bg: "bg-[#0B0B0E]", fg: "text-[#F2ECD9]" }
+        body = (
           <>
-            <span className="font-medium text-foreground">{activity.charging_user?.display_name}</span> charged <span className="font-medium text-foreground">{activity.charged_user?.display_name}</span> for saying
+            <span className="font-stamp uppercase tracking-[0.04em]">
+              {activity.charging_user?.display_name}
+            </span>{" "}
+            fined{" "}
+            <span className="font-stamp uppercase tracking-[0.04em]">
+              {activity.charged_user?.display_name}
+            </span>{" "}
+            for <span className="italic">"{activity.jargon_term.term}"</span>
           </>
         )
       }
     }
-    
-    // Determine if this activity can be cancelled (only "made" charges can be cancelled by the user who made them)
-    const canCancel = activity.type === "made" && activity.charging_user?.id === userId
-    
+
+    const canCancel =
+      activity.type === "made" && activity.charging_user?.id === userId
+
     return (
-      <div key={activity.id} className="relative p-4 transition-colors duration-200 ease-in-out hover:bg-muted/50">
-        <div className="flex gap-3 items-start">
-          <Avatar className="h-8 w-8 rounded-full">
-            <AvatarImage 
-              src={activity.type === "term_added" 
-                ? activity.charging_user?.avatar_url || undefined 
-                : activity.charging_user?.avatar_url || undefined} 
-              alt={activity.type === "term_added" 
-                ? activity.charging_user?.display_name 
-                : activity.charging_user?.display_name}
-              className="rounded-full" 
-            />
-            <AvatarFallback className={activity.type === "term_added" ? "bg-[#54bf04] text-[#191d22]" : "bg-[#feca11] text-[#191d22]"}>
-              {activity.charging_user?.display_name.substring(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          
-          <div className="min-w-0 flex-1">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm text-foreground">
-                  {activityDescription}
-                  {activity.type !== "term_added" && (
-                    <span className="italic"> "{activity.jargon_term.term}"</span>
-                  )}
-                </p>
-                {activity.type !== "term_added" && (
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium">${activity.amount?.toFixed(2)}</span>
-                    <span>•</span>
-                    <span>{timeAgo}</span>
-                  </div>
-                )}
-              </div>
-              <div className="ml-2">
-                {canCancel ? (
-                  <button
-                    type="button"
-                    className="relative cursor-pointer focus:outline-none"
-                    onClick={cancelConfirmId === activity.id ? undefined : () => handleCancelClick(activity.id)}
-                    aria-label={cancelConfirmId === activity.id ? "Cancel charge confirmation" : "Cancel charge"}
-                  >
-                    <Badge 
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium flex items-center gap-1 transition-all duration-200 
-                        ${cancelConfirmId === activity.id 
-                          ? "hidden" 
-                          : "group hover:bg-[#FDE8E8] hover:text-[#FE0160] bg-[rgba(254,202,17,0.2)] text-[#e6b600] hover:scale-105"}`}
-                    >
-                      <Eye className="h-3 w-3 group-hover:hidden transition-opacity duration-200" />
-                      <XIcon className="h-3 w-3 hidden group-hover:block transition-opacity duration-200" />
-                      <span className="group-hover:hidden transition-opacity duration-200">Gotcha</span>
-                      <span className="hidden group-hover:block transition-opacity duration-200">Cancel</span>
-                    </Badge>
-                  </button>
-                ) : (
-                  <Badge 
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium flex items-center gap-1
-                      ${activity.type === "term_added" 
-                        ? "bg-[rgba(84,191,4,0.2)] text-[#419703]" 
-                        : activity.type === "received"
-                          ? "bg-[rgba(255,99,71,0.2)] text-[#ff6347]"
-                          : "bg-[rgba(254,202,17,0.2)] text-[#e6b600]"}`}
-                  >
-                    {activity.type === "term_added" ? (
-                      <>
-                        <PencilIcon className="h-3 w-3" />
-                        <span>Term</span>
-                      </>
-                    ) : (
-                      <>
-                        {activity.type === "received" ? (
-                          <>
-                            <Skull className="h-3 w-3" />
-                            <span>Caught</span>
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="h-3 w-3" />
-                            <span>Gotcha</span>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </Badge>
-                )}
-              </div>
-            </div>
+      <li
+        key={activity.id}
+        className="relative grid grid-cols-[40px_1fr_auto] items-start gap-3 border-b border-dotted border-[#0B0B0E]/30 px-4 py-3 last:border-b-0"
+      >
+        <Avatar className="h-9 w-9 border-2 border-[#0B0B0E]">
+          <AvatarImage
+            src={activity.charging_user?.avatar_url || undefined}
+            alt={activity.charging_user?.display_name}
+          />
+          <AvatarFallback className="bg-[#FFD400] text-[#0B0B0E] font-stamp text-[10px]">
+            {initials(activity.charging_user?.display_name)}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="min-w-0">
+          <p className="text-[13px] leading-[1.5] text-[#0B0B0E]/90">{body}</p>
+          <div className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-[#0B0B0E]/55">
+            {activity.type !== "term_added" && activity.amount !== undefined && (
+              <>
+                <span className="font-stamp text-[#0B0B0E]">
+                  ${activity.amount.toFixed(2)}
+                </span>
+                <span aria-hidden>·</span>
+              </>
+            )}
+            <span>{timeAgo}</span>
           </div>
         </div>
-        
-        {/* Confirmation Overlay */}
+
+        <div className="shrink-0">
+          {canCancel && cancelConfirmId !== activity.id ? (
+            <button
+              type="button"
+              onClick={() => setCancelConfirmId(activity.id)}
+              className={`font-stamp inline-flex items-center gap-1 px-2 py-[3px] text-[9px] uppercase tracking-[0.18em] ${stamp.bg} ${stamp.fg} hover:bg-[#DC2626] hover:text-[#F2ECD9]`}
+            >
+              {stamp.label}
+            </button>
+          ) : (
+            <span
+              className={`font-stamp inline-flex items-center gap-1 px-2 py-[3px] text-[9px] uppercase tracking-[0.18em] ${stamp.bg} ${stamp.fg}`}
+            >
+              {stamp.label}
+            </span>
+          )}
+        </div>
+
         {cancelConfirmId === activity.id && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded bg-card/95 transition-all duration-200 ease-in-out">
-            <div className="p-4 text-center">
-              <p className="text-sm font-medium mb-3">Going soft on corporate jargon now?</p>
-              <div className="flex gap-2 justify-center">
-                <Button 
-                  onClick={() => handleConfirmCancel(activity.id)} 
-                  variant="destructive" 
-                  size="sm" 
-                  className="bg-[#FE0160] hover:bg-[#d9014f] text-white"
+          <div className="absolute inset-0 z-10 flex items-center justify-center border-2 border-[#DC2626] bg-white/95 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-2 px-4 py-3 text-center">
+              <p className="text-[11px] uppercase tracking-[0.18em]">
+                Going soft on jargon?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCancelCharge?.(activity.id)
+                    setCancelConfirmId(null)
+                  }}
+                  className="font-stamp bg-[#DC2626] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[#F2ECD9]"
                 >
-                  Yeah, refund it
-                </Button>
-                <Button 
-                  onClick={handleCancelCancel} 
-                  variant="secondary" 
-                  size="sm"
+                  Refund it
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCancelConfirmId(null)}
+                  className="font-stamp border-2 border-[#0B0B0E] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[#0B0B0E]"
                 >
                   Nevermind
-                </Button>
+                </button>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </li>
     )
   }
 
-  // Helper function to render activity items with pagination
-  const renderActivityList = (items: ActivityItem[]) => {
+  const renderList = (items: ActivityItem[]) => {
     const hasMore = items.length > visibleItems
-    const displayedItems = items.slice(0, visibleItems)
-
+    const displayed = items.slice(0, visibleItems)
     return (
-      <div className="flex flex-col">
-        <div className="divide-y divide-border">
-          {displayedItems.map((activity, index) => (
-            <div key={activity.id} className={index === 0 ? "" : "border-t border-border"}>
-              {renderActivity(activity)}
-            </div>
-          ))}
-        </div>
+      <>
+        <ul className="m-0 list-none p-0">{displayed.map(renderActivity)}</ul>
         {hasMore && (
-          <div className="flex justify-center border-t border-border p-4">
-            <Button
-              variant="ghost"
-              className="text-sm text-muted-foreground hover:text-foreground"
-              onClick={loadMore}
+          <div className="border-t-2 border-[#0B0B0E]">
+            <button
+              type="button"
+              onClick={() => setVisibleItems((n) => n + ITEMS_PER_PAGE)}
+              className="font-stamp w-full px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/70 hover:text-[#DC2626]"
             >
-              View More
-            </Button>
+              Show more citations
+            </button>
           </div>
         )}
-      </div>
+      </>
     )
   }
 
   return (
-    <div>
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="w-full rounded-b-none border-b">
-          <TabsTrigger value="all" className="flex-1 text-sm">
-            <span className="flex items-center gap-2">
-              <BellIcon className="h-4 w-4" />
-              All
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="received" className="flex-1 text-sm">
-            <span className="flex items-center gap-2">
-              <Skull className="h-4 w-4" />
-              Times Caught
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="made" className="flex-1 text-sm">
-            <span className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Gotchas
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="terms" className="flex-1 text-sm">
-            <span className="flex items-center gap-2">
-              <BookOpenIcon className="h-4 w-4" />
-              Terms
-            </span>
-          </TabsTrigger>
-        </TabsList>
-        
-        <div className="rounded-b-lg bg-card">
-          <TabsContent value="all" className="m-0">
-            {activities.length > 0 ? renderActivityList(activities) : renderEmptyState("all")}
-          </TabsContent>
-          
-          <TabsContent value="received" className="m-0">
-            {receivedActivities.length > 0 ? renderActivityList(receivedActivities) : renderEmptyState("received")}
-          </TabsContent>
-          
-          <TabsContent value="made" className="m-0">
-            {madeActivities.length > 0 ? renderActivityList(madeActivities) : renderEmptyState("made")}
-          </TabsContent>
-          
-          <TabsContent value="terms" className="m-0">
-            {termAddedActivities.length > 0 ? renderActivityList(termAddedActivities) : renderEmptyState("terms")}
-          </TabsContent>
-        </div>
-      </Tabs>
-    </div>
+    <Tabs defaultValue="all" className="w-full">
+      <ActivityTabsList />
+      <TabsContent value="all" className="m-0">
+        {activities.length > 0 ? renderList(activities) : renderEmptyState("all")}
+      </TabsContent>
+      <TabsContent value="received" className="m-0">
+        {receivedActivities.length > 0
+          ? renderList(receivedActivities)
+          : renderEmptyState("received")}
+      </TabsContent>
+      <TabsContent value="made" className="m-0">
+        {madeActivities.length > 0
+          ? renderList(madeActivities)
+          : renderEmptyState("made")}
+      </TabsContent>
+      <TabsContent value="terms" className="m-0">
+        {termAddedActivities.length > 0
+          ? renderList(termAddedActivities)
+          : renderEmptyState("terms")}
+      </TabsContent>
+    </Tabs>
+  )
+}
+
+function ActivityTabsList() {
+  return (
+    <TabsList className="grid w-full grid-cols-4 gap-0 rounded-none border-b-2 border-[#0B0B0E] bg-white p-0">
+      <ActivityTabTrigger value="all" icon={<ScrollIcon className="h-3 w-3" />} label="All" />
+      <ActivityTabTrigger value="received" icon={<Skull className="h-3 w-3" />} label="Caught" />
+      <ActivityTabTrigger value="made" icon={<EyeIcon className="h-3 w-3" />} label="Gotchas" />
+      <ActivityTabTrigger value="terms" icon={<BookOpenIcon className="h-3 w-3" />} label="Terms" />
+    </TabsList>
+  )
+}
+
+function ActivityTabTrigger({
+  value,
+  icon,
+  label,
+}: {
+  value: string
+  icon: ReactNode
+  label: string
+}) {
+  return (
+    <TabsTrigger
+      value={value}
+      className="font-stamp rounded-none border-r-2 border-[#0B0B0E] bg-white px-3 py-3 text-[10px] uppercase tracking-[0.18em] text-[#0B0B0E]/70 last:border-r-0 data-[state=active]:bg-[#0B0B0E] data-[state=active]:text-[#FFD400]"
+    >
+      <span className="inline-flex items-center gap-1.5">
+        {icon}
+        {label}
+      </span>
+    </TabsTrigger>
   )
 }

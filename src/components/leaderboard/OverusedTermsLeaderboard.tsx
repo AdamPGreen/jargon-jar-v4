@@ -1,119 +1,62 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUpIcon } from "lucide-react";
-import { formatCurrency, formatCount } from "@/lib/formatters";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useJargonFrequencyLeaderboard } from "@/hooks/useLeaderboard";
-import type { LeaderboardJargon, TimePeriod } from "@/hooks/useLeaderboard";
-import { cn } from "@/lib/utils";
+import { formatCount, formatCurrency } from "@/lib/formatters"
+import { useJargonFrequencyLeaderboard } from "@/hooks/useLeaderboard"
+import type { LeaderboardJargon, TimePeriod } from "@/hooks/useLeaderboard"
+import {
+  LeaderboardEmpty,
+  LeaderboardError,
+  LeaderboardLoading,
+  LeaderboardShell,
+  rankLabel,
+} from "./leaderboard-shell"
 
 interface OverusedTermsLeaderboardProps {
-  workspaceId: string;
-  timePeriod: TimePeriod;
+  workspaceId: string
+  timePeriod: TimePeriod
 }
 
-export function OverusedTermsLeaderboard({ workspaceId, timePeriod }: OverusedTermsLeaderboardProps) {
-  const { data, isLoading, error } = useJargonFrequencyLeaderboard({ 
-    workspaceId, 
-    timePeriod 
-  });
+export function OverusedTermsLeaderboard({
+  workspaceId,
+  timePeriod,
+}: OverusedTermsLeaderboardProps) {
+  const { data, isLoading, error } = useJargonFrequencyLeaderboard({ workspaceId, timePeriod })
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-8 border-b">
-        <CardTitle className="text-xl font-semibold">
-          Most Frequently Used Jargon
-        </CardTitle>
-        <TrendingUpIcon className="h-5 w-5 text-[#feca11]" />
-      </CardHeader>
-      <CardContent className="pt-6">
-        {error ? (
-          <div className="h-[400px] flex items-center justify-center">
-            <p className="text-red-500">Failed to load leaderboard data</p>
-          </div>
-        ) : isLoading ? (
-          <LeaderboardSkeleton />
-        ) : data.length === 0 ? (
-          <div className="h-[400px] flex items-center justify-center">
-            <p className="text-muted-foreground">No data available for this time period</p>
-          </div>
-        ) : (
-          <div className="h-[400px] overflow-auto">
-            <table className="w-full">
-              <thead className="sticky top-0 bg-background border-b">
-                <tr>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Rank</th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Term</th>
-                  <th className="text-right py-3 px-4 font-medium text-muted-foreground">Usage</th>
-                  <th className="text-right py-3 px-4 font-medium text-muted-foreground">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((jargon, index) => (
-                  <JargonRow key={jargon.word_id} jargon={jargon} rank={index + 1} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+    <LeaderboardShell title="Most overused" caption="Ranked by usage count" stamp="Recurring">
+      {error ? (
+        <LeaderboardError />
+      ) : isLoading ? (
+        <LeaderboardLoading />
+      ) : data.length === 0 ? (
+        <LeaderboardEmpty />
+      ) : (
+        <ul className="divide-y divide-dotted divide-[#0B0B0E]/30">
+          {data.map((jargon, i) => (
+            <TermRow key={jargon.word_id} jargon={jargon} rank={i + 1} />
+          ))}
+        </ul>
+      )}
+    </LeaderboardShell>
+  )
 }
 
-interface JargonRowProps {
-  jargon: LeaderboardJargon;
-  rank: number;
-}
-
-function JargonRow({ jargon, rank }: JargonRowProps) {
-  // Medal colors for top 3 ranks
-  const rankColors = {
-    1: 'text-[#ffd700]', // Gold
-    2: 'text-[#c0c0c0]', // Silver
-    3: 'text-[#cd7f32]', // Bronze
-  };
-
+function TermRow({ jargon, rank }: { jargon: LeaderboardJargon; rank: number }) {
   return (
-    <tr 
-      className="hover:bg-muted/50 transition-colors" 
-      title={jargon.description || ''}
+    <li
+      title={jargon.description || ""}
+      className="grid grid-cols-[36px_1fr_auto_auto] items-baseline gap-4 px-4 py-3"
     >
-      <td className="py-3 px-4">
-        <span className={cn(
-          "font-bold",
-          rank <= 3 ? rankColors[rank as 1 | 2 | 3] : ""
-        )}>
-          {rank}
-        </span>
-      </td>
-      <td className="py-3 px-4">
-        <span className="font-medium italic">"{jargon.word}"</span>
-      </td>
-      <td className="py-3 px-4 text-right">
-        <span className="font-medium">{formatCount(jargon.usage_count)}</span>
-      </td>
-      <td className="py-3 px-4 text-right text-muted-foreground">
+      <span className="font-stamp text-[12px] uppercase tracking-[0.18em] text-[#0B0B0E]/55">
+        {rankLabel(rank)}
+      </span>
+      <span className="font-heading truncate text-[20px] uppercase leading-[1.05] tracking-[-0.005em] md:text-[22px]">
+        {jargon.word}
+      </span>
+      <span className="font-stamp text-right text-[13px] text-[#0B0B0E]">
+        {formatCount(jargon.usage_count)}
+      </span>
+      <span className="hidden text-right text-[10px] uppercase tracking-[0.18em] text-[#0B0B0E]/55 sm:inline">
         {formatCurrency(jargon.total_amount)}
-      </td>
-    </tr>
-  );
+      </span>
+    </li>
+  )
 }
-
-function LeaderboardSkeleton() {
-  return (
-    <div className="h-[400px] pt-6 space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-full max-w-[300px]" />
-        <Skeleton className="h-4 w-full max-w-[250px]" />
-      </div>
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-full max-w-[300px]" />
-        <Skeleton className="h-4 w-full max-w-[250px]" />
-      </div>
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-full max-w-[300px]" />
-        <Skeleton className="h-4 w-full max-w-[250px]" />
-      </div>
-    </div>
-  );
-} 

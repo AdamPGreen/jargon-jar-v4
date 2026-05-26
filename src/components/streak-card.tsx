@@ -1,109 +1,83 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarIcon } from 'lucide-react'; // Or your preferred icon library
-
 interface StreakCardProps {
-  currentStreak: number;
-  recordStreak: number;
+  currentStreak: number
+  recordStreak: number
 }
 
-// Helper function to get random messages
-const getRandomMessage = (messages: string[]): string => {
-  return messages[Math.floor(Math.random() * messages.length)];
-};
-
-// Message variations
 const messagesForZeroDays = [
-  "Busted! Back to square one.",
-  "Oof. Jargon Jar gotcha.",
-  "Zero days... try again?",
-  "The jargon monster strikes!",
-];
-
+  "Busted. Back to day zero.",
+  "Oof. Jargon Jar got you.",
+  "Zero days. Try again.",
+  "The buzzword got loose.",
+]
 const subMessagesForZeroDays = [
-  "C'mon, you can do better!",
-  "Shake it off and start fresh.",
+  "You can do better.",
+  "Shake it off.",
   "Was it worth it?",
-  "Don't let the buzzwords win.",
-];
-
-const messagesForOneDay = [
-  "Day Without Jargon!",
-  "One day down!",
-  "Keepin' it clean!",
-];
-
-const subMessagesForOneDay = [
-  "Good start!",
-  "The journey begins.",
-  "Keep it up!",
-  "Nice one.",
-];
-
-const messagesForMultipleDays = (days: number) => [
-  "Days Without Jargon",
-  "Days jargon-free!",
-  "Going strong!",
-];
-
-const subMessagesForMultipleDays = [
-  "Impressive!",
-  "You're on a roll!",
-  "Making progress.",
-];
-
-const messagesForLongStreak = (days: number) => [
-  "Jargon Ninja!",
-  "Corporate BS Dodger!",
-  "Clean streak!",
-  "Unstoppable!",
-];
-
+  "Don't let synergy win.",
+]
+const messagesForOneDay = ["One day clean", "First day down", "Day one"]
+const subMessagesForOneDay = ["Good start.", "Keep it up.", "Nice one."]
+const messagesForMultipleDays = ["Days without jargon", "Days clean", "Going strong"]
+const subMessagesForMultipleDays = ["Impressive.", "On a roll.", "Making progress."]
+const messagesForLongStreak = ["Jargon ninja", "Buzzword dodger", "Untouchable", "Unstoppable"]
 const subMessagesForLongStreak = [
-  "Legendary streak!",
+  "Legendary streak.",
   "You're mastering the art.",
   "Can anyone stop you?",
-];
+]
+
+function pick(messages: string[]): string {
+  return messages[Math.floor(Math.random() * messages.length)]
+}
 
 export function StreakCard({ currentStreak, recordStreak }: StreakCardProps) {
-  let titleMessage: string;
-  let subMessage: string;
-  const isNewRecord = currentStreak >= recordStreak && currentStreak > 0; // Check if current streak is the new record
+  let title: string
+  let sub: string
+  const isNewRecord = currentStreak >= recordStreak && currentStreak > 0
 
   if (currentStreak === 0) {
-    titleMessage = getRandomMessage(messagesForZeroDays);
-    subMessage = getRandomMessage(subMessagesForZeroDays);
+    title = pick(messagesForZeroDays)
+    sub = pick(subMessagesForZeroDays)
   } else if (currentStreak === 1) {
-    titleMessage = getRandomMessage(messagesForOneDay);
-    subMessage = getRandomMessage(subMessagesForOneDay);
+    title = pick(messagesForOneDay)
+    sub = pick(subMessagesForOneDay)
   } else if (currentStreak >= 10) {
-    titleMessage = getRandomMessage(messagesForLongStreak(currentStreak));
-    subMessage = getRandomMessage(subMessagesForLongStreak);
-  } else { // 2-9 days
-    titleMessage = getRandomMessage(messagesForMultipleDays(currentStreak));
-    subMessage = getRandomMessage(subMessagesForMultipleDays);
+    title = pick(messagesForLongStreak)
+    sub = pick(subMessagesForLongStreak)
+  } else {
+    title = pick(messagesForMultipleDays)
+    sub = pick(subMessagesForMultipleDays)
   }
 
   return (
-    <Card className="col-span-1">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
-          Jargon-Free Streak
-        </CardTitle>
-        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent className="flex flex-col items-center justify-center pt-4">
-        <div className="font-heading text-5xl font-bold text-primary">{currentStreak}</div>
-        <p className="mt-1 text-center text-base text-muted-foreground">{titleMessage}</p>
-        <p className="text-xs text-center text-muted-foreground">{subMessage}</p>
+    <div className="relative flex flex-col border-2 border-[#0B0B0E] bg-white receipt-shadow">
+      <div className="flex items-center justify-between border-b border-dashed border-[#0B0B0E]/40 px-4 py-2">
+        <span className="font-stamp text-[11px] uppercase tracking-[0.2em] text-[#0B0B0E]">
+          Streak
+        </span>
+        <span className="font-stamp bg-[#0B0B0E] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-[#FFD400]">
+          Clean count
+        </span>
+      </div>
+
+      <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-8">
         {isNewRecord && (
-             <span className="mt-2 inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">
-               New Record!
-             </span>
-           )}
-        <p className="mt-4 text-xs text-muted-foreground italic">
-          Your record: {recordStreak} days
+          <span className="font-stamp absolute right-3 top-3 rotate-[8deg] border-2 border-[#DC2626] px-2 py-[2px] text-[10px] uppercase tracking-[0.18em] text-[#DC2626]">
+            New record
+          </span>
+        )}
+        <div className="font-heading text-[88px] leading-[0.9] text-[#0B0B0E] md:text-[112px]">
+          {currentStreak}
+        </div>
+        <p className="font-stamp mt-1 text-center text-[14px] uppercase tracking-[0.14em]">
+          {title}
         </p>
-      </CardContent>
-    </Card>
-  );
-} 
+        <p className="mt-1 text-center text-[12px] text-[#0B0B0E]/70">{sub}</p>
+      </div>
+
+      <div className="border-t border-dashed border-[#0B0B0E]/40 px-4 py-2 text-center text-[11px] uppercase tracking-[0.18em] text-[#0B0B0E]/55">
+        Personal record · {recordStreak} day{recordStreak === 1 ? "" : "s"}
+      </div>
+    </div>
+  )
+}

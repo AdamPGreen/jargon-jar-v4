@@ -1,27 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Anton, IBM_Plex_Mono, Archivo_Black } from "next/font/google";
-
-const anton = Anton({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-anton",
-  display: "swap",
-});
-
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-plex-mono",
-  display: "swap",
-});
-
-const archivoBlack = Archivo_Black({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-archivo-black",
-  display: "swap",
-});
+import { anton, plexMono, archivoBlack } from "@/lib/fonts";
 
 type RateRow = { term: string; price: number; tag?: string };
 
@@ -56,7 +35,7 @@ export default async function Home({
 
   return (
     <div
-      className={`${anton.variable} ${plexMono.variable} ${archivoBlack.variable} min-h-screen bg-[#F2ECD9] text-[#0B0B0E] selection:bg-[#FFD400] selection:text-[#0B0B0E]`}
+      className="min-h-screen bg-[#F2ECD9] text-[#0B0B0E] selection:bg-[#FFD400] selection:text-[#0B0B0E]"
       style={{ fontFamily: "var(--font-plex-mono), ui-monospace, monospace" }}
     >
       {/* paper grain overlay */}

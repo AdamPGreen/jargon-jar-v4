@@ -17,10 +17,17 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-        heading: ["Montserrat", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["var(--font-plex-mono)", "ui-monospace", "monospace"],
+        mono: ["var(--font-plex-mono)", "ui-monospace", "monospace"],
+        heading: ["var(--font-anton)", "Impact", "sans-serif"],
+        stamp: ["var(--font-archivo-black)", "Impact", "sans-serif"],
       },
       colors: {
+        paper: "hsl(var(--paper))",
+        ink: "hsl(var(--ink))",
+        "citation-yellow": "hsl(var(--citation-yellow))",
+        "citation-red": "hsl(var(--citation-red))",
+
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -57,10 +64,10 @@ module.exports = {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "var(--radius)",
+        sm: "var(--radius)",
       },
     },
   },
   plugins: [],
-} 
+}
