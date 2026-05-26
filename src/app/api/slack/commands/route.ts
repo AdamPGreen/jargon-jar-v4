@@ -68,10 +68,9 @@ function buildChargeModal(input: {
         block_id: "charged_user",
         label: { type: "plain_text", text: "Who said it?" },
         element: {
-          type: "external_select",
+          type: "users_select",
           action_id: "value",
-          placeholder: { type: "plain_text", text: "Search teammates" },
-          min_query_length: 0,
+          placeholder: { type: "plain_text", text: "Select a teammate" },
         },
       },
       {
@@ -81,20 +80,8 @@ function buildChargeModal(input: {
         element: {
           type: "external_select",
           action_id: "value",
-          placeholder: { type: "plain_text", text: "Type to search or add a new term" },
-          min_query_length: 1,
-        },
-      },
-      {
-        type: "input",
-        block_id: "message",
-        optional: true,
-        label: { type: "plain_text", text: "Context" },
-        element: {
-          type: "plain_text_input",
-          action_id: "value",
-          multiline: true,
-          placeholder: { type: "plain_text", text: "What did they say?" },
+          placeholder: { type: "plain_text", text: "Search or add a new term" },
+          min_query_length: 0,
         },
       },
     ],
