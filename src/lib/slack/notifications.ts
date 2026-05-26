@@ -25,7 +25,6 @@ type ChargeNotificationInput = {
   leaderboardUrl: string
   receiptUrl: string
   receiptImageUrl: string
-  context?: string | null
 }
 
 type ChargeConfirmationInput = {
@@ -52,11 +51,9 @@ export function buildChargeBlocks(input: {
   leaderboardUrl: string
   receiptUrl: string
   receiptImageUrl: string
-  context?: string | null
 }): KnownBlock[] {
   const fine = formatMoney(input.amount)
   const total = formatMoney(input.totalOwed)
-  const contextText = input.context?.trim() ?? ""
 
   return [
     {
@@ -66,17 +63,6 @@ export function buildChargeBlocks(input: {
         text: `:dollar: *<@${input.chargedSlackUserId}>* was charged *$${fine}* for *"${input.termName}"*.`,
       },
     },
-    ...(contextText.length > 0
-      ? [
-          {
-            type: "section" as const,
-            text: {
-              type: "mrkdwn" as const,
-              text: `> ${contextText.replace(/\n/g, "\n> ")}`,
-            },
-          },
-        ]
-      : []),
     {
       type: "image",
       image_url: input.receiptImageUrl,
@@ -123,7 +109,6 @@ export async function postChargeNotification({
   leaderboardUrl,
   receiptUrl,
   receiptImageUrl,
-  context,
 }: ChargeNotificationInput): Promise<NotificationResult> {
   try {
     await postMessage({
@@ -138,7 +123,6 @@ export async function postChargeNotification({
         leaderboardUrl,
         receiptUrl,
         receiptImageUrl,
-        context,
       }),
     })
 
@@ -151,14 +135,19 @@ export async function postChargeNotification({
   }
 }
 
+type OpenConversation = (input: {
+  users: string
+}) => Promise<{ ok?: boolean; channel?: { id?: string }; error?: string }>
+
 type ChargeNotificationWithFallbackInput = ChargeNotificationInput & {
-  postEphemeral: PostEphemeral
+  openConversation: OpenConversation
   chargingSlackUserId: string
+  channelDisplayId: string
 }
 
 type FallbackResult =
   | { ok: true; fallback: null }
-  | { ok: true; fallback: "ephemeral"; reason: string }
+  | { ok: true; fallback: "dm"; reason: string }
   | { ok: false; error: string }
 
 export async function postChargeNotificationWithFallback(
@@ -169,19 +158,25 @@ export async function postChargeNotificationWithFallback(
 
   const reason = primary.error
   const fine = formatMoney(input.amount)
-  const ephemeralText =
+  const channelRef = input.channelDisplayId
+    ? `<#${input.channelDisplayId}>`
+    : "that channel"
+  const dmText =
     reason === "not_in_channel"
-      ? `:warning: I couldn't post the receipt in this channel. Invite me with \`/invite @JargonJar\` and try again. Your charge of $${fine} for "${input.termName}" was saved: ${input.receiptUrl}`
-      : `:warning: Couldn't post the receipt to the channel (\`${reason}\`). Your charge of $${fine} for "${input.termName}" was saved: ${input.receiptUrl}`
+      ? `:warning: I couldn't post the receipt in ${channelRef} because I'm not a member there. Invite me with \`/invite @JargonJar\` and the next charge will land in-channel. Charge of *$${fine}* for *"${input.termName}"* was still saved: ${input.receiptUrl}`
+      : `:warning: Couldn't post the receipt to ${channelRef} (\`${reason}\`). Charge of *$${fine}* for *"${input.termName}"* was still saved: ${input.receiptUrl}`
 
   try {
-    await input.postEphemeral({
-      channel: input.channelId,
-      user: input.chargingSlackUserId,
-      thread_ts: input.threadTs ?? undefined,
-      text: ephemeralText,
+    const im = await input.openConversation({ users: input.chargingSlackUserId })
+    const dmChannel = im.channel?.id
+    if (!dmChannel) {
+      throw new Error(im.error ?? "could not open DM channel")
+    }
+    await input.postMessage({
+      channel: dmChannel,
+      text: dmText,
     })
-    return { ok: true, fallback: "ephemeral", reason }
+    return { ok: true, fallback: "dm", reason }
   } catch (error) {
     return {
       ok: false,

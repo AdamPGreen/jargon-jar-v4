@@ -69,9 +69,8 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
   }
   const values = payload.view?.state?.values ?? {}
 
-  const chargedSlackUserId = values.charged_user?.value?.selected_option?.value
+  const chargedSlackUserId = values.charged_user?.value?.selected_user
   const selectedTermValue = values.jargon_term?.value?.selected_option?.value
-  const messageText = values.message?.value?.value?.trim() ?? ""
 
   const errors: Record<string, string> = {}
   if (!chargedSlackUserId) errors.charged_user = "Pick a teammate to charge."
@@ -92,9 +91,26 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
   const slack = new WebClient(workspace.installation.botToken)
   const chargingSlackUserId = metadata.charging_slack_user_id ?? payload.user.id
 
+  const chargedProfile = await fetchSlackUserInfo(
+    workspace.installation.botToken,
+    chargedSlackUserId!
+  )
+  if (chargedProfile.isBot || chargedProfile.isDeleted) {
+    return NextResponse.json({
+      response_action: "errors",
+      errors: { charged_user: "You can only charge humans. Pick a teammate." },
+    })
+  }
+
   const [chargingMember, chargedMember] = await Promise.all([
     ensureMember(workspace.id, workspace.installation.botToken, chargingSlackUserId),
-    ensureMember(workspace.id, workspace.installation.botToken, chargedSlackUserId!),
+    upsertWorkspaceMember({
+      workspaceId: workspace.id,
+      slackUserId: chargedProfile.slackUserId,
+      email: chargedProfile.email,
+      displayName: chargedProfile.displayName,
+      avatarUrl: chargedProfile.avatarUrl,
+    }),
   ])
 
   let termId: string
@@ -142,7 +158,7 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     chargingMemberId: chargingMember.id,
     jargonTermId: termId,
     amount,
-    messageText,
+    messageText: "",
     messageTs: metadata.thread_ts ?? null,
     channelId: metadata.channel_id ?? "",
   })
@@ -156,8 +172,9 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
 
   const notification = await postChargeNotificationWithFallback({
     postMessage: slack.chat.postMessage.bind(slack.chat),
-    postEphemeral: slack.chat.postEphemeral.bind(slack.chat),
+    openConversation: slack.conversations.open.bind(slack.conversations),
     channelId: metadata.channel_id!,
+    channelDisplayId: metadata.channel_id!,
     threadTs: metadata.thread_ts,
     chargingSlackUserId,
     chargedSlackUserId: chargedSlackUserId!,
@@ -167,13 +184,12 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     leaderboardUrl: `${baseUrl}/dashboard/leaderboard`,
     receiptUrl: `${baseUrl}/receipt/${charge.id}`,
     receiptImageUrl: `${baseUrl}/receipt/${charge.id}/opengraph-image`,
-    context: messageText,
   })
 
   if (!notification.ok) {
     console.error("Slack charge notification failed entirely:", notification.error)
-  } else if (notification.fallback === "ephemeral") {
-    console.warn("Slack charge fell back to ephemeral:", notification.reason)
+  } else if (notification.fallback === "dm") {
+    console.warn("Slack charge fell back to DM:", notification.reason)
   } else {
     const confirmation = await postChargeConfirmation({
       postEphemeral: slack.chat.postEphemeral.bind(slack.chat),

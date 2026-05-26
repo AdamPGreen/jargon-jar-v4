@@ -138,51 +138,18 @@ describe("Slack notifications", () => {
     expect(imageBlock.alt_text).toContain("circle back")
   })
 
-  it("includes the context phrase as a quoted block above the image when provided", () => {
-    const blocks = buildChargeBlocks({
-      chargedSlackUserId: "U1",
-      amount: "2",
-      termName: "circle back",
-      totalOwed: "10",
-      leaderboardUrl: "https://example.com/lb",
-      receiptUrl: "https://example.com/receipt/abc",
-      receiptImageUrl: "https://example.com/receipt/abc/opengraph-image",
-      context: "let's circle back on this Q3",
-    })
-
-    expect(blocks).toHaveLength(5)
-    const quoteBlock = blocks[1] as {
-      type: "section"
-      text: { type: "mrkdwn"; text: string }
-    }
-    expect(quoteBlock.type).toBe("section")
-    expect(quoteBlock.text.text).toContain("circle back on this Q3")
-    expect(quoteBlock.text.text.startsWith("> ")).toBe(true)
-    expect(blocks[2].type).toBe("image")
-  })
-
-  it("omits the context block when context is empty or whitespace", () => {
-    const blocks = buildChargeBlocks({
-      chargedSlackUserId: "U1",
-      amount: "2",
-      termName: "circle back",
-      totalOwed: "10",
-      leaderboardUrl: "https://example.com/lb",
-      receiptUrl: "https://example.com/receipt/abc",
-      receiptImageUrl: "https://example.com/receipt/abc/opengraph-image",
-      context: "   ",
-    })
-    expect(blocks).toHaveLength(4)
-  })
-
-  it("falls back to an ephemeral charger message when the channel post fails with not_in_channel", async () => {
-    const postMessage = vi.fn().mockRejectedValue(new Error("not_in_channel"))
-    const postEphemeral = vi.fn().mockResolvedValue({ ok: true })
+  it("falls back to a DM when the channel post fails with not_in_channel", async () => {
+    const postMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("not_in_channel"))
+      .mockResolvedValueOnce({ ok: true })
+    const openConversation = vi.fn().mockResolvedValue({ ok: true, channel: { id: "D999" } })
 
     const result = await postChargeNotificationWithFallback({
       postMessage,
-      postEphemeral,
+      openConversation,
       channelId: "C123",
+      channelDisplayId: "C123",
       threadTs: null,
       chargingSlackUserId: "U999",
       chargedSlackUserId: "U123",
@@ -194,24 +161,30 @@ describe("Slack notifications", () => {
       receiptImageUrl: "https://x/r/abc/opengraph-image",
     })
 
-    expect(result).toEqual({ ok: true, fallback: "ephemeral", reason: "not_in_channel" })
-    expect(postEphemeral).toHaveBeenCalledWith(
+    expect(result).toEqual({ ok: true, fallback: "dm", reason: "not_in_channel" })
+    expect(openConversation).toHaveBeenCalledWith({ users: "U999" })
+    expect(postMessage).toHaveBeenCalledTimes(2)
+    expect(postMessage.mock.calls[1][0]).toEqual(
       expect.objectContaining({
-        channel: "C123",
-        user: "U999",
+        channel: "D999",
         text: expect.stringContaining("/invite @JargonJar"),
       })
     )
+    expect(postMessage.mock.calls[1][0].text).toContain("<#C123>")
   })
 
-  it("falls back to an ephemeral with a generic reason for other channel-post errors", async () => {
-    const postMessage = vi.fn().mockRejectedValue(new Error("channel_not_found"))
-    const postEphemeral = vi.fn().mockResolvedValue({ ok: true })
+  it("falls back to a DM with a generic reason for other channel-post errors", async () => {
+    const postMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("channel_not_found"))
+      .mockResolvedValueOnce({ ok: true })
+    const openConversation = vi.fn().mockResolvedValue({ ok: true, channel: { id: "D999" } })
 
     const result = await postChargeNotificationWithFallback({
       postMessage,
-      postEphemeral,
+      openConversation,
       channelId: "C123",
+      channelDisplayId: "C123",
       threadTs: null,
       chargingSlackUserId: "U999",
       chargedSlackUserId: "U123",
@@ -223,22 +196,45 @@ describe("Slack notifications", () => {
       receiptImageUrl: "https://x/r/abc/opengraph-image",
     })
 
-    expect(result).toEqual({ ok: true, fallback: "ephemeral", reason: "channel_not_found" })
-    expect(postEphemeral).toHaveBeenCalledWith(
-      expect.objectContaining({
-        text: expect.stringContaining("channel_not_found"),
-      })
-    )
+    expect(result).toEqual({ ok: true, fallback: "dm", reason: "channel_not_found" })
+    expect(postMessage.mock.calls[1][0].text).toContain("channel_not_found")
+  })
+
+  it("returns an error when both the channel post and the DM fallback fail", async () => {
+    const postMessage = vi.fn().mockRejectedValue(new Error("not_in_channel"))
+    const openConversation = vi.fn().mockResolvedValue({ ok: false, error: "user_not_found" })
+
+    const result = await postChargeNotificationWithFallback({
+      postMessage,
+      openConversation,
+      channelId: "C123",
+      channelDisplayId: "C123",
+      threadTs: null,
+      chargingSlackUserId: "U999",
+      chargedSlackUserId: "U123",
+      amount: "1",
+      termName: "synergy",
+      totalOwed: "1",
+      leaderboardUrl: "https://x/lb",
+      receiptUrl: "https://x/r/abc",
+      receiptImageUrl: "https://x/r/abc/opengraph-image",
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toContain("user_not_found")
+    }
   })
 
   it("returns ok+null fallback when the primary channel post succeeds", async () => {
     const postMessage = vi.fn().mockResolvedValue({ ok: true })
-    const postEphemeral = vi.fn()
+    const openConversation = vi.fn()
 
     const result = await postChargeNotificationWithFallback({
       postMessage,
-      postEphemeral,
+      openConversation,
       channelId: "C123",
+      channelDisplayId: "C123",
       threadTs: null,
       chargingSlackUserId: "U999",
       chargedSlackUserId: "U123",
@@ -251,6 +247,6 @@ describe("Slack notifications", () => {
     })
 
     expect(result).toEqual({ ok: true, fallback: null })
-    expect(postEphemeral).not.toHaveBeenCalled()
+    expect(openConversation).not.toHaveBeenCalled()
   })
 })

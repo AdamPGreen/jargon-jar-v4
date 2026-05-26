@@ -31,6 +31,9 @@ type SlackUserInfoResponse = {
     id: string
     name?: string
     real_name?: string
+    deleted?: boolean
+    is_bot?: boolean
+    is_app_user?: boolean
     profile?: {
       email?: string
       display_name?: string
@@ -112,6 +115,8 @@ export async function fetchSlackUserInfo(botToken: string, userId: string) {
       data.user.name ||
       "Unknown User",
     avatarUrl: profile?.image_512 || profile?.image_192 || profile?.image_72 || null,
+    isBot: Boolean(data.user.is_bot || data.user.is_app_user),
+    isDeleted: Boolean(data.user.deleted),
   }
 }
 
