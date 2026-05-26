@@ -5,6 +5,7 @@ import {
 } from "@/lib/auth/oauth-state"
 import { setDashboardSession } from "@/lib/auth/session"
 import {
+  seedWorkspaceJargon,
   upsertSlackInstallation,
   upsertWorkspace,
   upsertWorkspaceMember,
@@ -67,6 +68,8 @@ export async function GET(request: NextRequest) {
       avatarUrl: installer.avatarUrl,
       isAdmin: true,
     })
+
+    await seedWorkspaceJargon(workspace.id)
 
     setDashboardSession({
       slackUserId: member.slackUserId,

@@ -55,7 +55,11 @@ export default function MobileNav({
           </div>
         </SheetHeader>
 
-        <div className="mt-4 border-2 border-[#0B0B0E] bg-[#F2ECD9] p-3">
+        <Link
+          href="/dashboard/profile"
+          onClick={() => setOpen(false)}
+          className="mt-4 block border-2 border-[#0B0B0E] bg-[#F2ECD9] p-3 hover:bg-[#FFD400]"
+        >
           <div className="text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/55">
             Filed by
           </div>
@@ -65,7 +69,10 @@ export default function MobileNav({
           <div className="text-[10px] uppercase tracking-[0.16em] text-[#0B0B0E]/55">
             {workspaceName}
           </div>
-        </div>
+          <div className="mt-2 text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
+            View profile →
+          </div>
+        </Link>
 
         <nav className="mt-6 flex flex-col">
           {navItems.map((item) => {

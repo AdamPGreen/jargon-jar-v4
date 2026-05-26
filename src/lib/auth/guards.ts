@@ -21,6 +21,12 @@ export async function requireDashboardContext() {
   }
 }
 
+export async function requireAdminContext() {
+  const context = await requireDashboardContext()
+  if (!context.member.isAdmin) redirect("/dashboard?error=admin_required")
+  return context
+}
+
 export async function requireApiSession() {
   const session = getDashboardSession()
   if (!session) {
