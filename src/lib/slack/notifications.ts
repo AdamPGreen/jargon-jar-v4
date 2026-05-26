@@ -24,6 +24,8 @@ type ChargeNotificationInput = {
   totalOwed: string
   leaderboardUrl: string
   receiptUrl: string
+  receiptImageUrl: string
+  context?: string | null
 }
 
 type ChargeConfirmationInput = {
@@ -49,9 +51,12 @@ export function buildChargeBlocks(input: {
   totalOwed: string
   leaderboardUrl: string
   receiptUrl: string
+  receiptImageUrl: string
+  context?: string | null
 }): KnownBlock[] {
   const fine = formatMoney(input.amount)
   const total = formatMoney(input.totalOwed)
+  const contextText = input.context?.trim() ?? ""
 
   return [
     {
@@ -60,6 +65,22 @@ export function buildChargeBlocks(input: {
         type: "mrkdwn",
         text: `:dollar: *<@${input.chargedSlackUserId}>* was charged *$${fine}* for *"${input.termName}"*.`,
       },
+    },
+    ...(contextText.length > 0
+      ? [
+          {
+            type: "section" as const,
+            text: {
+              type: "mrkdwn" as const,
+              text: `> ${contextText.replace(/\n/g, "\n> ")}`,
+            },
+          },
+        ]
+      : []),
+    {
+      type: "image",
+      image_url: input.receiptImageUrl,
+      alt_text: `Citation receipt: ${input.termName} for $${fine}`,
     },
     {
       type: "context",
@@ -101,6 +122,8 @@ export async function postChargeNotification({
   totalOwed,
   leaderboardUrl,
   receiptUrl,
+  receiptImageUrl,
+  context,
 }: ChargeNotificationInput): Promise<NotificationResult> {
   try {
     await postMessage({
@@ -114,6 +137,8 @@ export async function postChargeNotification({
         totalOwed,
         leaderboardUrl,
         receiptUrl,
+        receiptImageUrl,
+        context,
       }),
     })
 
@@ -122,6 +147,45 @@ export async function postChargeNotification({
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Unknown Slack notification error",
+    }
+  }
+}
+
+type ChargeNotificationWithFallbackInput = ChargeNotificationInput & {
+  postEphemeral: PostEphemeral
+  chargingSlackUserId: string
+}
+
+type FallbackResult =
+  | { ok: true; fallback: null }
+  | { ok: true; fallback: "ephemeral"; reason: string }
+  | { ok: false; error: string }
+
+export async function postChargeNotificationWithFallback(
+  input: ChargeNotificationWithFallbackInput
+): Promise<FallbackResult> {
+  const primary = await postChargeNotification(input)
+  if (primary.ok) return { ok: true, fallback: null }
+
+  const reason = primary.error
+  const fine = formatMoney(input.amount)
+  const ephemeralText =
+    reason === "not_in_channel"
+      ? `:warning: I couldn't post the receipt in this channel. Invite me with \`/invite @JargonJar\` and try again. Your charge of $${fine} for "${input.termName}" was saved: ${input.receiptUrl}`
+      : `:warning: Couldn't post the receipt to the channel (\`${reason}\`). Your charge of $${fine} for "${input.termName}" was saved: ${input.receiptUrl}`
+
+  try {
+    await input.postEphemeral({
+      channel: input.channelId,
+      user: input.chargingSlackUserId,
+      thread_ts: input.threadTs ?? undefined,
+      text: ephemeralText,
+    })
+    return { ok: true, fallback: "ephemeral", reason }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unknown Slack fallback error",
     }
   }
 }

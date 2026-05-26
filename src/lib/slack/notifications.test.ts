@@ -3,6 +3,7 @@ import {
   buildChargeBlocks,
   postChargeConfirmation,
   postChargeNotification,
+  postChargeNotificationWithFallback,
 } from "./notifications"
 
 describe("Slack notifications", () => {
@@ -19,6 +20,7 @@ describe("Slack notifications", () => {
       totalOwed: "47",
       leaderboardUrl: "https://jargonjar.app/dashboard/leaderboard",
       receiptUrl: "https://jargonjar.app/receipt/abc-123",
+      receiptImageUrl: "https://jargonjar.app/receipt/abc-123/opengraph-image",
     })
 
     expect(result).toEqual({ ok: true })
@@ -66,6 +68,7 @@ describe("Slack notifications", () => {
       totalOwed: "1.00",
       leaderboardUrl: "https://jargonjar.app/dashboard/leaderboard",
       receiptUrl: "https://jargonjar.app/receipt/abc-123",
+      receiptImageUrl: "https://jargonjar.app/receipt/abc-123/opengraph-image",
     })
 
     expect(result).toEqual({ ok: false, error: "channel_not_found" })
@@ -109,7 +112,7 @@ describe("Slack notifications", () => {
     expect(result).toEqual({ ok: false, error: "user_not_in_channel" })
   })
 
-  it("formats blocks consistently", () => {
+  it("formats blocks consistently with the receipt image embedded", () => {
     const blocks = buildChargeBlocks({
       chargedSlackUserId: "U1",
       amount: "2",
@@ -117,11 +120,137 @@ describe("Slack notifications", () => {
       totalOwed: "10",
       leaderboardUrl: "https://example.com/lb",
       receiptUrl: "https://example.com/receipt/abc",
+      receiptImageUrl: "https://example.com/receipt/abc/opengraph-image",
     })
 
-    expect(blocks).toHaveLength(3)
+    expect(blocks).toHaveLength(4)
     expect(blocks[0].type).toBe("section")
-    expect(blocks[1].type).toBe("context")
-    expect(blocks[2].type).toBe("actions")
+    expect(blocks[1].type).toBe("image")
+    expect(blocks[2].type).toBe("context")
+    expect(blocks[3].type).toBe("actions")
+
+    const imageBlock = blocks[1] as {
+      type: "image"
+      image_url: string
+      alt_text: string
+    }
+    expect(imageBlock.image_url).toBe("https://example.com/receipt/abc/opengraph-image")
+    expect(imageBlock.alt_text).toContain("circle back")
+  })
+
+  it("includes the context phrase as a quoted block above the image when provided", () => {
+    const blocks = buildChargeBlocks({
+      chargedSlackUserId: "U1",
+      amount: "2",
+      termName: "circle back",
+      totalOwed: "10",
+      leaderboardUrl: "https://example.com/lb",
+      receiptUrl: "https://example.com/receipt/abc",
+      receiptImageUrl: "https://example.com/receipt/abc/opengraph-image",
+      context: "let's circle back on this Q3",
+    })
+
+    expect(blocks).toHaveLength(5)
+    const quoteBlock = blocks[1] as {
+      type: "section"
+      text: { type: "mrkdwn"; text: string }
+    }
+    expect(quoteBlock.type).toBe("section")
+    expect(quoteBlock.text.text).toContain("circle back on this Q3")
+    expect(quoteBlock.text.text.startsWith("> ")).toBe(true)
+    expect(blocks[2].type).toBe("image")
+  })
+
+  it("omits the context block when context is empty or whitespace", () => {
+    const blocks = buildChargeBlocks({
+      chargedSlackUserId: "U1",
+      amount: "2",
+      termName: "circle back",
+      totalOwed: "10",
+      leaderboardUrl: "https://example.com/lb",
+      receiptUrl: "https://example.com/receipt/abc",
+      receiptImageUrl: "https://example.com/receipt/abc/opengraph-image",
+      context: "   ",
+    })
+    expect(blocks).toHaveLength(4)
+  })
+
+  it("falls back to an ephemeral charger message when the channel post fails with not_in_channel", async () => {
+    const postMessage = vi.fn().mockRejectedValue(new Error("not_in_channel"))
+    const postEphemeral = vi.fn().mockResolvedValue({ ok: true })
+
+    const result = await postChargeNotificationWithFallback({
+      postMessage,
+      postEphemeral,
+      channelId: "C123",
+      threadTs: null,
+      chargingSlackUserId: "U999",
+      chargedSlackUserId: "U123",
+      amount: "1",
+      termName: "synergy",
+      totalOwed: "1",
+      leaderboardUrl: "https://x/lb",
+      receiptUrl: "https://x/r/abc",
+      receiptImageUrl: "https://x/r/abc/opengraph-image",
+    })
+
+    expect(result).toEqual({ ok: true, fallback: "ephemeral", reason: "not_in_channel" })
+    expect(postEphemeral).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channel: "C123",
+        user: "U999",
+        text: expect.stringContaining("/invite @JargonJar"),
+      })
+    )
+  })
+
+  it("falls back to an ephemeral with a generic reason for other channel-post errors", async () => {
+    const postMessage = vi.fn().mockRejectedValue(new Error("channel_not_found"))
+    const postEphemeral = vi.fn().mockResolvedValue({ ok: true })
+
+    const result = await postChargeNotificationWithFallback({
+      postMessage,
+      postEphemeral,
+      channelId: "C123",
+      threadTs: null,
+      chargingSlackUserId: "U999",
+      chargedSlackUserId: "U123",
+      amount: "1",
+      termName: "synergy",
+      totalOwed: "1",
+      leaderboardUrl: "https://x/lb",
+      receiptUrl: "https://x/r/abc",
+      receiptImageUrl: "https://x/r/abc/opengraph-image",
+    })
+
+    expect(result).toEqual({ ok: true, fallback: "ephemeral", reason: "channel_not_found" })
+    expect(postEphemeral).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining("channel_not_found"),
+      })
+    )
+  })
+
+  it("returns ok+null fallback when the primary channel post succeeds", async () => {
+    const postMessage = vi.fn().mockResolvedValue({ ok: true })
+    const postEphemeral = vi.fn()
+
+    const result = await postChargeNotificationWithFallback({
+      postMessage,
+      postEphemeral,
+      channelId: "C123",
+      threadTs: null,
+      chargingSlackUserId: "U999",
+      chargedSlackUserId: "U123",
+      amount: "1",
+      termName: "synergy",
+      totalOwed: "1",
+      leaderboardUrl: "https://x/lb",
+      receiptUrl: "https://x/r/abc",
+      receiptImageUrl: "https://x/r/abc/opengraph-image",
+    })
+
+    expect(result).toEqual({ ok: true, fallback: null })
+    expect(postEphemeral).not.toHaveBeenCalled()
   })
 })

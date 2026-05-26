@@ -1,5 +1,8 @@
 import { WebClient } from "@slack/web-api"
 import { NextResponse } from "next/server"
+import { eq } from "drizzle-orm"
+import { db } from "@/lib/db"
+import { jargonTerms } from "@/lib/db/schema"
 import {
   createCharge,
   createJargonTerm,
@@ -10,7 +13,10 @@ import {
   upsertWorkspaceMember,
 } from "@/lib/db/queries"
 import { fetchSlackUserInfo } from "@/lib/slack/api"
-import { postChargeConfirmation, postChargeNotification } from "@/lib/slack/notifications"
+import {
+  postChargeConfirmation,
+  postChargeNotificationWithFallback,
+} from "@/lib/slack/notifications"
 import { verifySlackRequest } from "@/lib/slack/security"
 
 type SlackInteractionPayload = {
@@ -63,21 +69,13 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
   }
   const values = payload.view?.state?.values ?? {}
 
-  const chargedSlackUserId = values.charged_user?.value?.selected_user
+  const chargedSlackUserId = values.charged_user?.value?.selected_option?.value
   const selectedTermValue = values.jargon_term?.value?.selected_option?.value
-  const selectedTermId = selectedTermValue === "__custom__" ? undefined : selectedTermValue
-  const customTerm = values.custom_term?.value?.value?.trim()
-  const amount = values.amount?.value?.value?.trim()
   const messageText = values.message?.value?.value?.trim() ?? ""
 
   const errors: Record<string, string> = {}
   if (!chargedSlackUserId) errors.charged_user = "Pick a teammate to charge."
-  if (!selectedTermId && !customTerm) {
-    errors.jargon_term = "Pick an existing term or add a new one."
-  }
-  if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
-    errors.amount = "Enter a positive virtual fine."
-  }
+  if (!selectedTermValue) errors.jargon_term = "Pick a term or add a new one."
 
   if (Object.keys(errors).length > 0) {
     return NextResponse.json({ response_action: "errors", errors })
@@ -99,27 +97,43 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     ensureMember(workspace.id, workspace.installation.botToken, chargedSlackUserId!),
   ])
 
-  let termId = selectedTermId
-  let termName = "jargon"
-  if (customTerm) {
-    const existing = await findJargonTerm({ workspaceId: workspace.id, term: customTerm })
+  let termId: string
+  let termName: string
+  let amount: string
+
+  if (selectedTermValue!.startsWith("__new__:")) {
+    const newName = selectedTermValue!.slice("__new__:".length).trim()
+    if (!newName) {
+      return NextResponse.json({
+        response_action: "errors",
+        errors: { jargon_term: "Type a term name to add." },
+      })
+    }
+    const existing = await findJargonTerm({ workspaceId: workspace.id, term: newName })
     const term =
       existing ??
       (await createJargonTerm({
         workspaceId: workspace.id,
-        term: customTerm,
-        defaultCost: amount!,
+        term: newName,
+        defaultCost: "1.00",
         createdById: chargingMember.id,
       }))
     termId = term.id
     termName = term.term
-  }
-
-  if (!termId) {
-    return NextResponse.json({
-      response_action: "errors",
-      errors: { jargon_term: "Pick an existing term or add a new one." },
+    amount = Number(term.defaultCost).toFixed(2)
+  } else {
+    const term = await db.query.jargonTerms.findFirst({
+      where: eq(jargonTerms.id, selectedTermValue!),
     })
+    if (!term) {
+      return NextResponse.json({
+        response_action: "errors",
+        errors: { jargon_term: "That term no longer exists. Pick another." },
+      })
+    }
+    termId = term.id
+    termName = term.term
+    amount = Number(term.defaultCost).toFixed(2)
   }
 
   const charge = await createCharge({
@@ -127,7 +141,7 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     chargedMemberId: chargedMember.id,
     chargingMemberId: chargingMember.id,
     jargonTermId: termId,
-    amount: amount!,
+    amount,
     messageText,
     messageTs: metadata.thread_ts ?? null,
     channelId: metadata.channel_id ?? "",
@@ -140,33 +154,39 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
 
   const baseUrl = origin || process.env.APP_BASE_URL || ""
 
-  const [notification, confirmation] = await Promise.all([
-    postChargeNotification({
-      postMessage: slack.chat.postMessage.bind(slack.chat),
-      channelId: metadata.channel_id!,
-      threadTs: metadata.thread_ts,
-      chargedSlackUserId: chargedSlackUserId!,
-      amount: amount!,
-      termName,
-      totalOwed,
-      leaderboardUrl: `${baseUrl}/dashboard/leaderboard`,
-      receiptUrl: `${baseUrl}/receipt/${charge.id}`,
-    }),
-    postChargeConfirmation({
+  const notification = await postChargeNotificationWithFallback({
+    postMessage: slack.chat.postMessage.bind(slack.chat),
+    postEphemeral: slack.chat.postEphemeral.bind(slack.chat),
+    channelId: metadata.channel_id!,
+    threadTs: metadata.thread_ts,
+    chargingSlackUserId,
+    chargedSlackUserId: chargedSlackUserId!,
+    amount,
+    termName,
+    totalOwed,
+    leaderboardUrl: `${baseUrl}/dashboard/leaderboard`,
+    receiptUrl: `${baseUrl}/receipt/${charge.id}`,
+    receiptImageUrl: `${baseUrl}/receipt/${charge.id}/opengraph-image`,
+    context: messageText,
+  })
+
+  if (!notification.ok) {
+    console.error("Slack charge notification failed entirely:", notification.error)
+  } else if (notification.fallback === "ephemeral") {
+    console.warn("Slack charge fell back to ephemeral:", notification.reason)
+  } else {
+    const confirmation = await postChargeConfirmation({
       postEphemeral: slack.chat.postEphemeral.bind(slack.chat),
       channelId: metadata.channel_id!,
       threadTs: metadata.thread_ts,
       chargingSlackUserId,
       chargedSlackUserId: chargedSlackUserId!,
-      amount: amount!,
+      amount,
       termName,
-    }),
-  ])
-  if (!notification.ok) {
-    console.error("Slack charge notification failed:", notification.error)
-  }
-  if (!confirmation.ok) {
-    console.error("Slack charge confirmation failed:", confirmation.error)
+    })
+    if (!confirmation.ok) {
+      console.error("Slack charge confirmation failed:", confirmation.error)
+    }
   }
 
   return NextResponse.json({ response_action: "clear" })

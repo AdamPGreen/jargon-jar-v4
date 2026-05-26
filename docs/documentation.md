@@ -8,7 +8,7 @@ Jargon Jar is an anti-corporate, snarky Slack app that functions as a virtual "s
 ### Slack Integration
 - OAuth integration with Slack workspaces
 - Automatic jargon detection in channels where the app is invited
-- `/charge` command to manually charge users for jargon usage
+- `/jargon` command to manually charge users for jargon usage
 - Interactive modals for charging users and adding new jargon terms
 
 ### User Management
@@ -22,7 +22,7 @@ Jargon Jar is an anti-corporate, snarky Slack app that functions as a virtual "s
 - Customizable cost per jargon term
 
 ### Charging System
-- Manual charging via `/charge` command
+- Manual charging via `/jargon` command
 - Modal interface for selecting users, choosing jargon, and setting costs
 - Automatic charging based on jargon detection in messages
 
