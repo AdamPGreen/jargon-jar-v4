@@ -1,5 +1,6 @@
-import { and, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm"
+import { and, desc, eq, gte, ilike, isNull, isNotNull, or, sql } from "drizzle-orm"
 import { db } from "./index"
+import { DEFAULT_RATE_SHEET } from "../jargon-defaults"
 import {
   charges,
   jargonTerms,
@@ -153,13 +154,62 @@ export async function listJargonTerms(workspaceId: string) {
 export async function findJargonTerm(input: {
   workspaceId: string
   term: string
+  scope?: "workspace" | "any"
 }) {
+  const scope = input.scope ?? "any"
+  const scopeFilter =
+    scope === "workspace"
+      ? eq(jargonTerms.workspaceId, input.workspaceId)
+      : or(eq(jargonTerms.workspaceId, input.workspaceId), isNull(jargonTerms.workspaceId))
+
   return db.query.jargonTerms.findFirst({
-    where: and(
-      or(eq(jargonTerms.workspaceId, input.workspaceId), isNull(jargonTerms.workspaceId)),
-      ilike(jargonTerms.term, input.term)
-    ),
+    where: and(scopeFilter, ilike(jargonTerms.term, input.term)),
   })
+}
+
+export async function updateJargonTerm(input: {
+  id: string
+  workspaceId: string
+  term?: string
+  description?: string | null
+  defaultCost?: string
+}) {
+  const patch: Record<string, unknown> = { updatedAt: new Date() }
+  if (input.term !== undefined) patch.term = input.term
+  if (input.description !== undefined) patch.description = input.description
+  if (input.defaultCost !== undefined) patch.defaultCost = input.defaultCost
+
+  const [row] = await db
+    .update(jargonTerms)
+    .set(patch)
+    .where(
+      and(
+        eq(jargonTerms.id, input.id),
+        eq(jargonTerms.workspaceId, input.workspaceId),
+        isNotNull(jargonTerms.workspaceId)
+      )
+    )
+    .returning()
+
+  return row
+}
+
+export async function deleteJargonTerm(input: {
+  id: string
+  workspaceId: string
+}) {
+  const [row] = await db
+    .delete(jargonTerms)
+    .where(
+      and(
+        eq(jargonTerms.id, input.id),
+        eq(jargonTerms.workspaceId, input.workspaceId),
+        isNotNull(jargonTerms.workspaceId)
+      )
+    )
+    .returning()
+
+  return row
 }
 
 export async function createJargonTerm(input: {
@@ -300,7 +350,10 @@ export async function getDashboardData(input: {
       limit: 10,
     }),
     db.query.jargonTerms.findMany({
-      where: eq(jargonTerms.workspaceId, input.workspaceId),
+      where: and(
+        eq(jargonTerms.workspaceId, input.workspaceId),
+        isNotNull(jargonTerms.createdById)
+      ),
       with: { createdBy: true },
       orderBy: [desc(jargonTerms.createdAt)],
       limit: 5,
@@ -313,10 +366,27 @@ export async function getDashboardData(input: {
 export async function seedDefaultJargonTerms() {
   await db
     .insert(jargonTerms)
-    .values([
-      { term: "Synergy", description: "When normal cooperation needs a rebrand.", defaultCost: "2.00" },
-      { term: "Circle Back", description: "Return to a conversation that should have ended.", defaultCost: "1.50" },
-      { term: "Low-Hanging Fruit", description: "The easy work someone still needs to do.", defaultCost: "1.00" },
-    ])
+    .values(
+      DEFAULT_RATE_SHEET.map((row) => ({
+        workspaceId: null,
+        term: row.term,
+        description: row.description,
+        defaultCost: row.defaultCost,
+      }))
+    )
+    .onConflictDoNothing()
+}
+
+export async function seedWorkspaceJargon(workspaceId: string) {
+  await db
+    .insert(jargonTerms)
+    .values(
+      DEFAULT_RATE_SHEET.map((row) => ({
+        workspaceId,
+        term: row.term,
+        description: row.description,
+        defaultCost: row.defaultCost,
+      }))
+    )
     .onConflictDoNothing()
 }

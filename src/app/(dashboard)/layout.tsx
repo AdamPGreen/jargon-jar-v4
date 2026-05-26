@@ -44,36 +44,52 @@ export default async function DashboardLayout({
           <div className="mx-auto flex max-w-[1200px] items-center justify-between px-4 py-3 md:px-8">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 text-[15px] uppercase tracking-[0.18em]"
+              className="flex items-baseline gap-3"
             >
-              <Image
-                src="/images/coin-jar-no-shadow.png"
-                alt=""
-                width={32}
-                height={32}
-                className="h-8 w-8 shrink-0 object-contain"
-                priority
-              />
-              <span className="font-stamp text-[13px] md:text-[14px]">Jargon Jar</span>
-              <span className="hidden text-[11px] tracking-[0.22em] text-[#0B0B0E]/55 lg:inline">
-                / DEPT. OF FINES
+              <span className="font-heading text-[24px] uppercase leading-none tracking-[0.01em] md:text-[28px]">
+                Jargon Jar
+              </span>
+              <span className="hidden text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/55 lg:inline">
+                / Dept. of Fines
               </span>
             </Link>
 
             <DashboardNav items={navItems} />
 
             <div className="flex items-center gap-3">
-              <div className="hidden text-right md:block">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/50">
-                  Filed by
+              <Link
+                href="/dashboard/profile"
+                className="hidden items-center gap-3 border-2 border-transparent px-2 py-1 transition-colors hover:border-[#0B0B0E] md:flex"
+              >
+                <div className="relative h-9 w-9 shrink-0 overflow-hidden border-2 border-[#0B0B0E] bg-[#FFD400]">
+                  {member.avatarUrl ? (
+                    <Image
+                      src={member.avatarUrl}
+                      alt={member.displayName}
+                      fill
+                      sizes="36px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center font-stamp text-[11px] uppercase text-[#0B0B0E]">
+                      {member.displayName
+                        .split(" ")
+                        .map((p) => p[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </div>
+                  )}
                 </div>
-                <div className="font-stamp text-[12px]">
-                  {member.displayName}
+                <div className="text-left leading-tight">
+                  <div className="font-stamp text-[13px] uppercase tracking-[0.04em]">
+                    {member.displayName}
+                  </div>
+                  <div className="text-[10px] tracking-[0.16em] text-[#0B0B0E]/55">
+                    {workspace.name}
+                  </div>
                 </div>
-                <div className="text-[10px] tracking-[0.16em] text-[#0B0B0E]/55">
-                  {workspace.name}
-                </div>
-              </div>
+              </Link>
 
               <div className="md:hidden">
                 <MobileNav

@@ -1,5 +1,6 @@
 import { requireDashboardContext } from "@/lib/auth/guards"
 import { listJargonTerms } from "@/lib/db/queries"
+import { WorkspaceTermsAdmin } from "./workspace-terms-admin"
 
 export default async function JargonPage() {
   const { workspace } = await requireDashboardContext()
@@ -10,32 +11,16 @@ export default async function JargonPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col items-start justify-between gap-4 border-b-2 border-[#0B0B0E] pb-5 md:flex-row md:items-end">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
-            § IV · Schedule of fines
-          </div>
-          <h1 className="font-heading mt-2 text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
-            The <span className="text-[#DC2626]">rate sheet.</span>
-          </h1>
-          <p className="mt-2 max-w-[60ch] text-[13px] text-[#0B0B0E]/75">
-            Every term {workspace.name} can be fined for. Workspace terms are editable.
-            Global defaults ship with every install.
-          </p>
-        </div>
-        <div className="font-stamp shrink-0 border-2 border-[#0B0B0E] bg-[#FFD400] px-3 py-2 text-[11px] uppercase tracking-[0.18em]">
-          {jargonTerms.length} term{jargonTerms.length === 1 ? "" : "s"} on file
-        </div>
-      </div>
-
-      {workspaceTerms.length > 0 && (
-        <RateSheet
-          caption="§ IV-a · Workspace edits"
-          title={`${workspace.name} additions`}
-          stamp="Custom"
-          terms={workspaceTerms}
-        />
-      )}
+      <WorkspaceTermsAdmin
+        workspaceName={workspace.name}
+        totalCount={jargonTerms.length}
+        terms={workspaceTerms.map((t) => ({
+          id: t.id,
+          term: t.term,
+          description: t.description,
+          defaultCost: t.defaultCost,
+        }))}
+      />
 
       <RateSheet
         caption="§ IV-b · Global defaults"
