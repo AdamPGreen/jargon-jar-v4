@@ -341,11 +341,11 @@ export default async function Home({
               <Step
                 num="02"
                 title="Charge a violator"
-                body="Type /charge in any channel. Pick a teammate, the jargon they used, and an amount. Jargon Jar prints a citation."
+                body="Type /jargon in any channel. Pick a teammate, the jargon they used, and an amount. Jargon Jar prints a citation."
               >
                 <div className="mt-5 rounded-[2px] border border-[#0B0B0E]/40 bg-[#F2ECD9] px-3 py-2 font-mono text-[12px]">
                   <span className="text-[#0B0B0E]/50">$</span>{" "}
-                  <span className={archivoBlack.className}>/charge</span>{" "}
+                  <span className={archivoBlack.className}>/jargon</span>{" "}
                   <span className="text-[#0B0B0E]/80">@riley</span>{" "}
                   <span className="text-[#DC2626]">"synergy"</span>{" "}
                   <span className="text-[#0B0B0E]/80">$5</span>
@@ -694,7 +694,7 @@ function SlackMock() {
                 <span className="text-[11px] text-[#F2ECD9]/40">11:42 AM</span>
               </div>
               <p className="break-words font-mono text-[12px] leading-snug text-[#F2ECD9]/90 sm:text-[13px]">
-                <span className="font-semibold text-[#36C5F0]">/charge</span>{" "}
+                <span className="font-semibold text-[#36C5F0]">/jargon</span>{" "}
                 <span className="text-[#F2ECD9]">@riley</span>{" "}
                 <span className="text-[#FFD400]">"synergy"</span>{" "}
                 <span className="text-[#F2ECD9]">$5</span>{" "}
