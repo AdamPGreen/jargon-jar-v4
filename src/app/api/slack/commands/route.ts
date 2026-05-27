@@ -1,7 +1,10 @@
-import { WebClient, type ModalView } from "@slack/web-api"
+import { WebClient } from "@slack/web-api"
 import { NextResponse } from "next/server"
 import { getWorkspaceBySlackTeamId } from "@/lib/db/queries"
+import { buildChargeModal } from "@/lib/slack/modal"
 import { verifySlackRequest } from "@/lib/slack/security"
+
+const APP_NAME = "JargonJar"
 
 export async function POST(request: Request) {
   const body = await request.text()
@@ -13,6 +16,7 @@ export async function POST(request: Request) {
   const command = formData.get("command")
   const triggerId = formData.get("trigger_id")
   const channelId = formData.get("channel_id")
+  const channelName = formData.get("channel_name") ?? ""
   const teamId = formData.get("team_id")
   const userId = formData.get("user_id")
   const threadTs = formData.get("thread_ts")
@@ -31,59 +35,75 @@ export async function POST(request: Request) {
 
   const slack = new WebClient(workspace.installation.botToken)
 
+  const membership = await checkChannelMembership({
+    slack,
+    channelId,
+    channelName,
+  })
+  if (!membership.canPost) {
+    return NextResponse.json({
+      response_type: "ephemeral",
+      text: membership.message,
+    })
+  }
+
   await slack.views.open({
     trigger_id: triggerId,
     view: buildChargeModal({
-      workspaceId: workspace.id,
-      channelId,
-      chargingSlackUserId: userId,
-      threadTs,
+      workspace_id: workspace.id,
+      channel_id: channelId,
+      charging_slack_user_id: userId,
+      thread_ts: threadTs,
+      add_new_term: null,
     }),
   })
 
   return new Response("", { status: 200 })
 }
 
-function buildChargeModal(input: {
-  workspaceId: string
+type SlackError = Error & { data?: { error?: string } }
+
+async function checkChannelMembership(input: {
+  slack: WebClient
   channelId: string
-  chargingSlackUserId: string
-  threadTs: string | null
-}): ModalView {
-  return {
-    type: "modal",
-    callback_id: "charge_modal",
-    title: { type: "plain_text", text: "Jargon Jar" },
-    submit: { type: "plain_text", text: "Charge" },
-    close: { type: "plain_text", text: "Cancel" },
-    private_metadata: JSON.stringify({
-      workspace_id: input.workspaceId,
-      channel_id: input.channelId,
-      charging_slack_user_id: input.chargingSlackUserId,
-      thread_ts: input.threadTs,
-    }),
-    blocks: [
-      {
-        type: "input",
-        block_id: "charged_user",
-        label: { type: "plain_text", text: "Who said it?" },
-        element: {
-          type: "users_select",
-          action_id: "value",
-          placeholder: { type: "plain_text", text: "Select a teammate" },
-        },
-      },
-      {
-        type: "input",
-        block_id: "jargon_term",
-        label: { type: "plain_text", text: "Jargon term" },
-        element: {
-          type: "external_select",
-          action_id: "value",
-          placeholder: { type: "plain_text", text: "Search or add a new term" },
-          min_query_length: 0,
-        },
-      },
-    ],
+  channelName: string
+}): Promise<{ canPost: true } | { canPost: false; message: string }> {
+  // DMs and bot-owned DMs are always reachable.
+  if (input.channelId.startsWith("D")) return { canPost: true }
+
+  const channelRef = input.channelName
+    ? `#${input.channelName}`
+    : `<#${input.channelId}>`
+
+  try {
+    const info = await input.slack.conversations.info({ channel: input.channelId })
+    if (info.channel?.is_member === false) {
+      return {
+        canPost: false,
+        message: `:wave: I need to be in ${channelRef} to drop receipts. Add me with \`/invite @${APP_NAME}\` and try \`/jargon\` again.`,
+      }
+    }
+    return { canPost: true }
+  } catch (error) {
+    const slackError = error as SlackError
+    const code = slackError.data?.error ?? slackError.message ?? "unknown"
+
+    // Old installs without channels:read/groups:read scopes: skip pre-check, let the
+    // submission flow handle it via the existing DM fallback.
+    if (code === "missing_scope" || code === "not_allowed_token_type") {
+      console.warn("Channel membership pre-check skipped:", code)
+      return { canPost: true }
+    }
+
+    // channel_not_found typically means the bot isn't in a private channel.
+    if (code === "channel_not_found") {
+      return {
+        canPost: false,
+        message: `:wave: I can't see ${channelRef}. If it's a private channel, add me with \`/invite @${APP_NAME}\` and try \`/jargon\` again.`,
+      }
+    }
+
+    console.error("Channel membership pre-check failed:", code)
+    return { canPost: true }
   }
 }
