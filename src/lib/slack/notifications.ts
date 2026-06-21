@@ -7,13 +7,6 @@ type PostMessage = (input: {
   blocks?: KnownBlock[]
 }) => Promise<unknown>
 
-type PostEphemeral = (input: {
-  channel: string
-  user: string
-  text: string
-  thread_ts?: string
-}) => Promise<unknown>
-
 type ChargeNotificationInput = {
   postMessage: PostMessage
   channelId: string
@@ -25,16 +18,6 @@ type ChargeNotificationInput = {
   leaderboardUrl: string
   receiptUrl: string
   receiptImageUrl: string
-}
-
-type ChargeConfirmationInput = {
-  postEphemeral: PostEphemeral
-  channelId: string
-  threadTs?: string | null
-  chargingSlackUserId: string
-  chargedSlackUserId: string
-  amount: string
-  termName: string
 }
 
 type NotificationResult = { ok: true } | { ok: false; error: string }
@@ -181,32 +164,6 @@ export async function postChargeNotificationWithFallback(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Unknown Slack fallback error",
-    }
-  }
-}
-
-export async function postChargeConfirmation({
-  postEphemeral,
-  channelId,
-  threadTs,
-  chargingSlackUserId,
-  chargedSlackUserId,
-  amount,
-  termName,
-}: ChargeConfirmationInput): Promise<NotificationResult> {
-  try {
-    await postEphemeral({
-      channel: channelId,
-      user: chargingSlackUserId,
-      thread_ts: threadTs ?? undefined,
-      text: `:white_check_mark: Charged <@${chargedSlackUserId}> $${formatMoney(amount)} for "${termName}".`,
-    })
-
-    return { ok: true }
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Unknown Slack ephemeral error",
     }
   }
 }

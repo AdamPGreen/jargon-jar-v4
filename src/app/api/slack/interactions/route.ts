@@ -1,5 +1,6 @@
 import { WebClient } from "@slack/web-api"
 import { NextResponse } from "next/server"
+import { waitUntil } from "@vercel/functions"
 import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { jargonTerms } from "@/lib/db/schema"
@@ -18,10 +19,7 @@ import {
   parseChargeModalState,
   type ChargeModalState,
 } from "@/lib/slack/modal"
-import {
-  postChargeConfirmation,
-  postChargeNotificationWithFallback,
-} from "@/lib/slack/notifications"
+import { postChargeNotificationWithFallback } from "@/lib/slack/notifications"
 import { verifySlackRequest } from "@/lib/slack/security"
 
 type SlackInteractionPayload = {
@@ -140,30 +138,61 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     return NextResponse.json({ response_action: "errors", errors })
   }
 
-  const workspace = await getWorkspaceBySlackTeamId(payload.team.id)
-  if (!workspace?.installation?.botToken || workspace.id !== state.workspace_id) {
-    return NextResponse.json({
-      response_action: "errors",
-      errors: { jargon_term: "Jargon Jar is not installed for this workspace." },
+  // Slack shows "We had some trouble connecting" if a view_submission isn't
+  // acknowledged within ~3s. The charge does several DB writes plus Slack API
+  // calls, so close the modal immediately and finish the work in the background.
+  waitUntil(
+    processCharge({
+      teamId: payload.team.id,
+      state,
+      submitterSlackUserId: payload.user.id,
+      chargedSlackUserId: chargedSlackUserId!,
+      selectedTermValue: selectedTermValue!,
+      newTermNameInput,
+      newTermCostInput,
+      isAddNew,
+      origin,
+    }).catch((error) => {
+      console.error("Charge workflow failed:", error)
     })
+  )
+
+  return NextResponse.json({ response_action: "clear" })
+}
+
+type ProcessChargeInput = {
+  teamId: string
+  state: ChargeModalState
+  submitterSlackUserId: string
+  chargedSlackUserId: string
+  selectedTermValue: string
+  newTermNameInput: string
+  newTermCostInput: string
+  isAddNew: boolean
+  origin: string
+}
+
+async function processCharge(input: ProcessChargeInput) {
+  const workspace = await getWorkspaceBySlackTeamId(input.teamId)
+  if (!workspace?.installation?.botToken || workspace.id !== input.state.workspace_id) {
+    console.error("Charge skipped: workspace not installed or mismatched", input.teamId)
+    return
   }
 
-  const slack = new WebClient(workspace.installation.botToken)
-  const chargingSlackUserId = state.charging_slack_user_id || payload.user.id
+  const botToken = workspace.installation.botToken
+  const slack = new WebClient(botToken)
+  const chargingSlackUserId =
+    input.state.charging_slack_user_id || input.submitterSlackUserId
 
-  const chargedProfile = await fetchSlackUserInfo(
-    workspace.installation.botToken,
-    chargedSlackUserId!
-  )
+  const chargedProfile = await fetchSlackUserInfo(botToken, input.chargedSlackUserId)
   if (chargedProfile.isBot || chargedProfile.isDeleted) {
-    return NextResponse.json({
-      response_action: "errors",
-      errors: { charged_user: "You can only charge humans. Pick a teammate." },
-    })
+    // The teammate picker only lists humans, so this is a defensive guard.
+    console.error("Charge skipped: target is a bot or deleted user", input.chargedSlackUserId)
+    return
   }
 
   const [chargingMember, chargedMember] = await Promise.all([
-    ensureMember(workspace.id, workspace.installation.botToken, chargingSlackUserId),
+    ensureMember(workspace.id, botToken, chargingSlackUserId),
     upsertWorkspaceMember({
       workspaceId: workspace.id,
       slackUserId: chargedProfile.slackUserId,
@@ -177,9 +206,9 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
   let termName: string
   let amount: string
 
-  if (isAddNew) {
-    const name = newTermNameInput
-    const cost = Number(newTermCostInput).toFixed(2)
+  if (input.isAddNew) {
+    const name = input.newTermNameInput
+    const cost = Number(input.newTermCostInput).toFixed(2)
     const existing = await findJargonTerm({ workspaceId: workspace.id, term: name })
     const term =
       existing ??
@@ -194,13 +223,11 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     amount = Number(term.defaultCost).toFixed(2)
   } else {
     const term = await db.query.jargonTerms.findFirst({
-      where: eq(jargonTerms.id, selectedTermValue!),
+      where: eq(jargonTerms.id, input.selectedTermValue),
     })
     if (!term) {
-      return NextResponse.json({
-        response_action: "errors",
-        errors: { jargon_term: "That term no longer exists. Pick another." },
-      })
+      console.error("Charge skipped: term no longer exists", input.selectedTermValue)
+      return
     }
     termId = term.id
     termName = term.term
@@ -214,8 +241,8 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     jargonTermId: termId,
     amount,
     messageText: "",
-    messageTs: state.thread_ts ?? null,
-    channelId: state.channel_id ?? "",
+    messageTs: input.state.thread_ts ?? null,
+    channelId: input.state.channel_id ?? "",
   })
 
   const totalOwed = await getMemberChargeTotal({
@@ -223,16 +250,16 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     memberId: chargedMember.id,
   })
 
-  const baseUrl = origin || process.env.APP_BASE_URL || ""
+  const baseUrl = input.origin || process.env.APP_BASE_URL || ""
 
   const notification = await postChargeNotificationWithFallback({
     postMessage: slack.chat.postMessage.bind(slack.chat),
     openConversation: slack.conversations.open.bind(slack.conversations),
-    channelId: state.channel_id,
-    channelDisplayId: state.channel_id,
-    threadTs: state.thread_ts,
+    channelId: input.state.channel_id,
+    channelDisplayId: input.state.channel_id,
+    threadTs: input.state.thread_ts,
     chargingSlackUserId,
-    chargedSlackUserId: chargedSlackUserId!,
+    chargedSlackUserId: input.chargedSlackUserId,
     amount,
     termName,
     totalOwed,
@@ -245,22 +272,7 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     console.error("Slack charge notification failed entirely:", notification.error)
   } else if (notification.fallback === "dm") {
     console.warn("Slack charge fell back to DM:", notification.reason)
-  } else {
-    const confirmation = await postChargeConfirmation({
-      postEphemeral: slack.chat.postEphemeral.bind(slack.chat),
-      channelId: state.channel_id,
-      threadTs: state.thread_ts,
-      chargingSlackUserId,
-      chargedSlackUserId: chargedSlackUserId!,
-      amount,
-      termName,
-    })
-    if (!confirmation.ok) {
-      console.error("Slack charge confirmation failed:", confirmation.error)
-    }
   }
-
-  return NextResponse.json({ response_action: "clear" })
 }
 
 async function ensureMember(workspaceId: string, botToken: string, slackUserId: string) {

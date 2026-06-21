@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import {
   buildChargeBlocks,
-  postChargeConfirmation,
   postChargeNotification,
   postChargeNotificationWithFallback,
 } from "./notifications"
@@ -72,44 +71,6 @@ describe("Slack notifications", () => {
     })
 
     expect(result).toEqual({ ok: false, error: "channel_not_found" })
-  })
-
-  it("sends an ephemeral confirmation to the charger", async () => {
-    const postEphemeral = vi.fn().mockResolvedValue({ ok: true })
-
-    const result = await postChargeConfirmation({
-      postEphemeral,
-      channelId: "C123",
-      threadTs: null,
-      chargingSlackUserId: "U999",
-      chargedSlackUserId: "U123",
-      amount: "5",
-      termName: "synergy",
-    })
-
-    expect(result).toEqual({ ok: true })
-    expect(postEphemeral).toHaveBeenCalledWith({
-      channel: "C123",
-      user: "U999",
-      thread_ts: undefined,
-      text: ':white_check_mark: Charged <@U123> $5.00 for "synergy".',
-    })
-  })
-
-  it("returns a failure result when an ephemeral confirmation cannot be posted", async () => {
-    const postEphemeral = vi.fn().mockRejectedValue(new Error("user_not_in_channel"))
-
-    const result = await postChargeConfirmation({
-      postEphemeral,
-      channelId: "C123",
-      threadTs: null,
-      chargingSlackUserId: "U999",
-      chargedSlackUserId: "U123",
-      amount: "5",
-      termName: "synergy",
-    })
-
-    expect(result).toEqual({ ok: false, error: "user_not_in_channel" })
   })
 
   it("formats blocks consistently with the receipt image embedded", () => {
