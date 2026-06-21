@@ -14,6 +14,11 @@ import {
 } from "@/lib/db/queries"
 import { fetchSlackUserInfo } from "@/lib/slack/api"
 import {
+  buildChargeModal,
+  parseChargeModalState,
+  type ChargeModalState,
+} from "@/lib/slack/modal"
+import {
   postChargeConfirmation,
   postChargeNotificationWithFallback,
 } from "@/lib/slack/notifications"
@@ -23,7 +28,15 @@ type SlackInteractionPayload = {
   type: string
   team: { id: string }
   user: { id: string }
+  actions?: Array<{
+    action_id: string
+    block_id: string
+    selected_option?: { value: string }
+    selected_user?: string
+    value?: string
+  }>
   view?: {
+    id: string
     callback_id: string
     private_metadata: string
     state?: {
@@ -52,6 +65,10 @@ export async function POST(request: Request) {
 
   const payload = JSON.parse(payloadString) as SlackInteractionPayload
 
+  if (payload.type === "block_actions" && payload.view?.callback_id === "charge_modal") {
+    return handleChargeBlockActions(payload)
+  }
+
   if (payload.type === "view_submission" && payload.view?.callback_id === "charge_modal") {
     const origin = new URL(request.url).origin
     return handleChargeSubmission(payload, origin)
@@ -60,28 +77,71 @@ export async function POST(request: Request) {
   return NextResponse.json({})
 }
 
-async function handleChargeSubmission(payload: SlackInteractionPayload, origin: string) {
-  const metadata = JSON.parse(payload.view?.private_metadata || "{}") as {
-    workspace_id?: string
-    channel_id?: string
-    charging_slack_user_id?: string
-    thread_ts?: string | null
+async function handleChargeBlockActions(payload: SlackInteractionPayload) {
+  const view = payload.view!
+  const action = payload.actions?.[0]
+  if (!action) return NextResponse.json({})
+  if (action.block_id !== "jargon_term" || action.action_id !== "value") {
+    return NextResponse.json({})
   }
+
+  const selected = action.selected_option?.value
+  const state = parseChargeModalState(view.private_metadata)
+  const nextAddNew = selected?.startsWith("__new__:")
+    ? { name: selected.slice("__new__:".length).trim() }
+    : null
+
+  const wasAddNew = state.add_new_term !== null
+  if (wasAddNew === (nextAddNew !== null) && state.add_new_term?.name === nextAddNew?.name) {
+    return NextResponse.json({})
+  }
+
+  const workspace = await getWorkspaceBySlackTeamId(payload.team.id)
+  if (!workspace?.installation?.botToken) {
+    return NextResponse.json({})
+  }
+  const slack = new WebClient(workspace.installation.botToken)
+
+  await slack.views.update({
+    view_id: view.id,
+    view: buildChargeModal({ ...state, add_new_term: nextAddNew }),
+  })
+
+  return NextResponse.json({})
+}
+
+async function handleChargeSubmission(payload: SlackInteractionPayload, origin: string) {
+  const state = parseChargeModalState(payload.view?.private_metadata)
   const values = payload.view?.state?.values ?? {}
 
-  const chargedSlackUserId = values.charged_user?.value?.selected_user
+  const chargedSlackUserId = values.charged_user?.value?.selected_option?.value
   const selectedTermValue = values.jargon_term?.value?.selected_option?.value
+  const newTermNameInput = values.new_term_name?.value?.value?.trim() ?? ""
+  const newTermCostInput = values.new_term_cost?.value?.value?.trim() ?? ""
 
   const errors: Record<string, string> = {}
   if (!chargedSlackUserId) errors.charged_user = "Pick a teammate to charge."
   if (!selectedTermValue) errors.jargon_term = "Pick a term or add a new one."
+
+  const isAddNew =
+    state.add_new_term !== null || Boolean(selectedTermValue?.startsWith("__new__:"))
+
+  if (isAddNew) {
+    if (!newTermNameInput) {
+      errors.new_term_name = "Enter a term name."
+    }
+    const costNumber = Number(newTermCostInput)
+    if (!newTermCostInput || Number.isNaN(costNumber) || costNumber <= 0) {
+      errors.new_term_cost = "Enter a positive dollar amount."
+    }
+  }
 
   if (Object.keys(errors).length > 0) {
     return NextResponse.json({ response_action: "errors", errors })
   }
 
   const workspace = await getWorkspaceBySlackTeamId(payload.team.id)
-  if (!workspace?.installation?.botToken || workspace.id !== metadata.workspace_id) {
+  if (!workspace?.installation?.botToken || workspace.id !== state.workspace_id) {
     return NextResponse.json({
       response_action: "errors",
       errors: { jargon_term: "Jargon Jar is not installed for this workspace." },
@@ -89,7 +149,7 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
   }
 
   const slack = new WebClient(workspace.installation.botToken)
-  const chargingSlackUserId = metadata.charging_slack_user_id ?? payload.user.id
+  const chargingSlackUserId = state.charging_slack_user_id || payload.user.id
 
   const chargedProfile = await fetchSlackUserInfo(
     workspace.installation.botToken,
@@ -117,21 +177,16 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
   let termName: string
   let amount: string
 
-  if (selectedTermValue!.startsWith("__new__:")) {
-    const newName = selectedTermValue!.slice("__new__:".length).trim()
-    if (!newName) {
-      return NextResponse.json({
-        response_action: "errors",
-        errors: { jargon_term: "Type a term name to add." },
-      })
-    }
-    const existing = await findJargonTerm({ workspaceId: workspace.id, term: newName })
+  if (isAddNew) {
+    const name = newTermNameInput
+    const cost = Number(newTermCostInput).toFixed(2)
+    const existing = await findJargonTerm({ workspaceId: workspace.id, term: name })
     const term =
       existing ??
       (await createJargonTerm({
         workspaceId: workspace.id,
-        term: newName,
-        defaultCost: "1.00",
+        term: name,
+        defaultCost: cost,
         createdById: chargingMember.id,
       }))
     termId = term.id
@@ -159,8 +214,8 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
     jargonTermId: termId,
     amount,
     messageText: "",
-    messageTs: metadata.thread_ts ?? null,
-    channelId: metadata.channel_id ?? "",
+    messageTs: state.thread_ts ?? null,
+    channelId: state.channel_id ?? "",
   })
 
   const totalOwed = await getMemberChargeTotal({
@@ -173,9 +228,9 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
   const notification = await postChargeNotificationWithFallback({
     postMessage: slack.chat.postMessage.bind(slack.chat),
     openConversation: slack.conversations.open.bind(slack.conversations),
-    channelId: metadata.channel_id!,
-    channelDisplayId: metadata.channel_id!,
-    threadTs: metadata.thread_ts,
+    channelId: state.channel_id,
+    channelDisplayId: state.channel_id,
+    threadTs: state.thread_ts,
     chargingSlackUserId,
     chargedSlackUserId: chargedSlackUserId!,
     amount,
@@ -193,8 +248,8 @@ async function handleChargeSubmission(payload: SlackInteractionPayload, origin: 
   } else {
     const confirmation = await postChargeConfirmation({
       postEphemeral: slack.chat.postEphemeral.bind(slack.chat),
-      channelId: metadata.channel_id!,
-      threadTs: metadata.thread_ts,
+      channelId: state.channel_id,
+      threadTs: state.thread_ts,
       chargingSlackUserId,
       chargedSlackUserId: chargedSlackUserId!,
       amount,
@@ -221,3 +276,5 @@ async function ensureMember(workspaceId: string, botToken: string, slackUserId: 
     avatarUrl: profile.avatarUrl,
   })
 }
+
+export type { ChargeModalState }

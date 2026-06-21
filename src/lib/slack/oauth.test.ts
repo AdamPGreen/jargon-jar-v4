@@ -17,6 +17,9 @@ describe("Slack OAuth URL builders", () => {
     )
     expect(url.searchParams.get("state")).toBe("state-123")
     expect(url.searchParams.get("scope")).toContain("commands")
+    expect(url.searchParams.get("scope")).toContain("channels:read")
+    expect(url.searchParams.get("scope")).toContain("groups:read")
+    expect(url.searchParams.get("scope")).toContain("mpim:read")
     expect(url.searchParams.get("user_scope")).toContain("identity.email")
   })
 

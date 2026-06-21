@@ -1,10 +1,13 @@
 export const SLACK_INSTALL_SCOPES = [
   "app_mentions:read",
   "channels:history",
+  "channels:read",
   "chat:write",
   "commands",
   "groups:history",
+  "groups:read",
   "im:write",
+  "mpim:read",
   "team:read",
   "users:read",
   "users:read.email",

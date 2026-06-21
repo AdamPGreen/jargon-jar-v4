@@ -65,14 +65,6 @@ export default async function Home({
               href="/"
               className="flex items-center gap-2 text-[15px] uppercase tracking-[0.18em]"
             >
-              <Image
-                src="/images/coin-jar-no-shadow.png"
-                alt=""
-                width={32}
-                height={32}
-                className="h-8 w-8 shrink-0 object-contain"
-                priority
-              />
               <span className={`${archivoBlack.className} text-[13px] md:text-[14px]`}>
                 Jargon Jar
               </span>
@@ -113,24 +105,16 @@ export default async function Home({
 
         {/* ─────────────── HERO ─────────────── */}
         <section className="relative">
-          <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-8 px-4 pb-12 pt-8 md:grid-cols-12 md:gap-6 md:px-8 md:pb-24 md:pt-16">
+          <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-8 px-4 pb-12 pt-8 md:grid-cols-12 md:gap-14 md:px-8 md:pb-24 md:pt-16">
             {/* Left: copy */}
             <div className="md:col-span-7">
-              <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
-                <span
-                  aria-hidden
-                  className="inline-block h-[6px] w-[6px] animate-pulse rounded-full bg-[#DC2626]"
-                />
-                Citation No. 0042-A · Issued daily in #general
-              </div>
-
               <h1
-                className={`${anton.className} mt-4 text-[52px] uppercase leading-[0.88] tracking-[-0.01em] sm:text-[88px] md:mt-5 md:text-[140px] lg:text-[148px]`}
+                className={`${anton.className} mt-4 text-[38px] uppercase leading-[0.88] tracking-[-0.01em] sm:text-[64px] md:mt-5 md:text-[100px] lg:text-[108px]`}
               >
-                <span className="block">Fine your team</span>
-                <span className="block">for talking</span>
+                <span className="block">Keep a running tab</span>
+                <span className="block">on your team's</span>
                 <span className="relative inline-block">
-                  <span className="relative z-10">like a deck.</span>
+                  <span className="relative z-10">worst jargon.</span>
                   <span
                     aria-hidden
                     className="absolute inset-x-[-4px] bottom-[6px] z-0 h-[22%] bg-[#FFD400] md:bottom-[14px] md:h-[24%]"
@@ -139,11 +123,11 @@ export default async function Home({
               </h1>
 
               <p
-                className={`${plexMono.className} mt-7 max-w-[44ch] text-[14px] leading-[1.65] text-[#0B0B0E]/80 md:text-[15px]`}
+                className={`${plexMono.className} mt-7 text-[14px] leading-[1.65] text-[#0B0B0E]/80 md:text-[15px]`}
               >
-                Jargon Jar is a Slack app that issues citations every time someone in
-                your team says "synergy", "circle back", or — god help them — "open
-                the kimono". A receipt prints. A leaderboard updates. Pride is taxed.
+                A Slack app that issues a citation every time someone says
+                "synergy", "circle back", or "open the kimono". A receipt prints.
+                The leaderboard updates. Pride is taxed.
               </p>
 
               {installRequired && (
@@ -162,7 +146,7 @@ export default async function Home({
               )}
 
               {/* Primary CTA */}
-              <div className="mt-8">
+              <div className="mt-8 inline-flex flex-col items-center">
                 <a
                   href="/api/slack/install"
                   className="group relative inline-flex items-center gap-3 whitespace-nowrap bg-[#0B0B0E] px-6 py-3.5 text-[#F2ECD9] shadow-[6px_6px_0_0_#0B0B0E] transition-transform hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[8px_8px_0_0_#FFD400] sm:px-7 sm:py-4"
@@ -181,17 +165,13 @@ export default async function Home({
                   </span>
                 </a>
 
-                {/* sub-CTA row: trust + sign-in */}
+                {/* sub-CTA: trust + sign-in, stacked + centered under button */}
                 <div
-                  className={`${plexMono.className} mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-[0.18em]`}
+                  className={`${plexMono.className} mt-6 flex flex-col items-center gap-2 text-[11px] uppercase tracking-[0.18em]`}
                 >
                   <span className="text-[#0B0B0E]/55">
                     Free · 30-sec install
                   </span>
-                  <span
-                    aria-hidden
-                    className="hidden h-3 w-px bg-[#0B0B0E]/25 sm:inline-block"
-                  />
                   <a
                     href="/api/auth/signin"
                     className="group inline-flex items-center gap-1.5 text-[#0B0B0E]/75 hover:text-[#0B0B0E]"
@@ -420,13 +400,13 @@ export default async function Home({
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-[6px] inline-block h-[3px] w-3 bg-[#FFD400]" />
-                  Dispute button for the wrongly accused
+                  Running tab posts back for every charge
                 </li>
               </ul>
             </div>
 
             <div className="md:col-span-7">
-              <SlackMock />
+              <CitationPost />
             </div>
           </div>
         </section>
@@ -535,7 +515,7 @@ export default async function Home({
               Stop letting <span className="relative inline-block"><span className="relative z-10 text-[#DC2626]">synergy</span><span aria-hidden className="absolute left-0 right-0 top-[48%] z-20 h-[6px] -rotate-[2deg] bg-[#DC2626]" /></span> happen for free.
             </h2>
 
-            <div className="mt-10 flex flex-col items-center justify-center gap-5 md:flex-row">
+            <div className="mt-10 inline-flex flex-col items-center gap-5">
               <a
                 href="/api/slack/install"
                 className="group relative inline-flex items-center gap-3 bg-[#0B0B0E] px-8 py-5 text-[#F2ECD9] shadow-[8px_8px_0_0_#FFD400] transition-transform hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[12px_12px_0_0_#FFD400]"
@@ -651,155 +631,143 @@ function SlackGlyph({ className = "" }: { className?: string }) {
   );
 }
 
-function SlackMock() {
+function CitationPost() {
   return (
-    <div className="relative">
-      {/* Slack window */}
-      <div className="overflow-hidden rounded-[10px] border border-[#F2ECD9]/15 bg-[#1A1D21] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.6)]">
-        {/* title bar */}
-        <div className="flex items-center justify-between border-b border-[#F2ECD9]/10 px-4 py-2.5">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
-          </div>
-          <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#F2ECD9]/40">
-            # general · acme
-          </div>
-          <div className="w-12" />
-        </div>
-
-        <div className="space-y-4 px-3 py-4 sm:px-5 sm:py-5">
-          {/* msg 1 */}
-          <div className="flex gap-3">
-            <div className="h-9 w-9 shrink-0 rounded bg-gradient-to-br from-[#6FE3FF] to-[#3083DC]" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 text-[13px]">
-                <span className="font-semibold text-[#F2ECD9]">riley</span>
-                <span className="text-[11px] text-[#F2ECD9]/40">11:41 AM</span>
-              </div>
-              <p className="text-[14px] leading-snug text-[#F2ECD9]/90">
-                ok so the real <span className="rounded bg-[#DC2626]/25 px-[3px] text-[#FFB4A2]">synergy</span> here is we{" "}
-                <span className="rounded bg-[#DC2626]/25 px-[3px] text-[#FFB4A2]">circle back</span> on this on monday
-              </p>
-            </div>
-          </div>
-
-          {/* msg 2 — the command */}
-          <div className="flex gap-3">
-            <div className="h-9 w-9 shrink-0 rounded bg-gradient-to-br from-[#FFD400] to-[#FF8A00]" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 text-[13px]">
-                <span className="font-semibold text-[#F2ECD9]">adam</span>
-                <span className="text-[11px] text-[#F2ECD9]/40">11:42 AM</span>
-              </div>
-              <p className="break-words font-mono text-[12px] leading-snug text-[#F2ECD9]/90 sm:text-[13px]">
-                <span className="font-semibold text-[#36C5F0]">/jargon</span>{" "}
-                <span className="text-[#F2ECD9]">@riley</span>{" "}
-                <span className="text-[#FFD400]">"synergy"</span>{" "}
-                <span className="text-[#F2ECD9]">$5</span>{" "}
-                <span className="text-[#F2ECD9]/50">+ "circle back" $3</span>
-              </p>
-            </div>
-          </div>
-
-          {/* bot reply */}
-          <div className="flex gap-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded bg-[#FFD400]">
-              <span
-                className="text-[14px] font-black text-[#0B0B0E]"
-                style={{ fontFamily: "var(--font-archivo-black)" }}
-              >
-                $
-              </span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 text-[13px]">
-                <span className="font-semibold text-[#F2ECD9]">Jargon Jar</span>
-                <span className="rounded bg-[#F2ECD9]/10 px-1.5 py-[1px] text-[10px] uppercase tracking-[0.14em] text-[#F2ECD9]/60">
-                  app
-                </span>
-                <span className="text-[11px] text-[#F2ECD9]/40">11:42 AM</span>
-              </div>
-
-              {/* receipt card */}
-              <div className="mt-1 overflow-hidden rounded-[6px] border-l-[3px] border-[#FFD400] bg-[#222529] p-3 sm:p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div
-                    className="text-[11px] uppercase tracking-[0.16em] text-[#F2ECD9] sm:text-[13px] sm:tracking-[0.18em]"
-                    style={{ fontFamily: "var(--font-archivo-black)" }}
-                  >
-                    Citation issued
-                  </div>
-                  <div className="font-mono text-[11px] text-[#F2ECD9]/40">
-                    #00042
-                  </div>
-                </div>
-                <div className="mt-3 space-y-1.5 font-mono text-[12px] sm:text-[13px]">
-                  <Row label="Offender" value="@riley" />
-                  <Row label="Violation" value={`"synergy"`} amount="$5.00" />
-                  <Row label="Violation" value={`"circle back"`} amount="$3.00" />
-                  <div className="my-2 border-t border-dashed border-[#F2ECD9]/15" />
-                  <Row label="Total due" value="" amount="$8.00" total />
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button className="rounded border border-[#F2ECD9]/20 bg-[#2B2E33] px-3 py-1.5 text-[12px] text-[#F2ECD9] hover:bg-[#34373D]">
-                    Pay up
-                  </button>
-                  <button className="rounded border border-[#F2ECD9]/20 px-3 py-1.5 text-[12px] text-[#F2ECD9]/70 hover:bg-[#2B2E33]">
-                    Dispute
-                  </button>
-                  <button className="rounded border border-[#F2ECD9]/20 px-3 py-1.5 text-[12px] text-[#F2ECD9]/70 hover:bg-[#2B2E33]">
-                    Leaderboard ↗
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="relative md:pl-6">
+      {/* light Slack cue: the bot dropped this into the channel */}
+      <div className="flex items-center gap-2.5 pb-4">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-[#FFD400]">
+          <span className={`${archivoBlack.className} text-[13px] text-[#0B0B0E]`}>
+            $
+          </span>
+        </span>
+        <span className="text-[13px] font-semibold text-[#F2ECD9]">Jargon Jar</span>
+        <span className="rounded bg-[#F2ECD9]/10 px-1.5 py-[1px] text-[10px] uppercase tracking-[0.14em] text-[#F2ECD9]/60">
+          app
+        </span>
+        <span className={`${plexMono.className} text-[11px] text-[#F2ECD9]/40`}>
+          posted to #general
+        </span>
       </div>
 
-      {/* sticker behind */}
-      <div
-        aria-hidden
-        className="absolute -bottom-6 -right-4 rotate-[8deg] border-2 border-[#FFD400] bg-[#0B0B0E] px-3 py-2 text-[10px] uppercase tracking-[0.22em] text-[#FFD400]"
-        style={{ fontFamily: "var(--font-plex-mono)" }}
-      >
-        live in #general
+      {/* the citation — the artifact, full glory */}
+      <article className="relative rotate-[-1.2deg] border-2 border-[#0B0B0E] bg-[#F2ECD9] p-6 text-[#0B0B0E] shadow-[12px_12px_0_0_#FFD400] md:p-8">
+        {/* FINED stamp */}
+        <div
+          aria-hidden
+          className="absolute -right-3 -top-5 z-[3] rotate-[12deg] border-[3px] border-[#DC2626] bg-[#F2ECD9] px-3 py-1 shadow-[3px_3px_0_0_rgba(11,11,14,0.25)]"
+        >
+          <div
+            className={`${archivoBlack.className} text-[22px] leading-none tracking-[0.06em] text-[#DC2626] md:text-[26px]`}
+          >
+            FINED
+          </div>
+          <div
+            className={`${plexMono.className} text-center text-[8px] uppercase tracking-[0.22em] text-[#DC2626] md:text-[9px]`}
+          >
+            EST. 2024
+          </div>
+        </div>
+
+        {/* header */}
+        <div className="flex items-end justify-between gap-3 border-b-2 border-[#0B0B0E] pb-4">
+          <div>
+            <div
+              className={`${plexMono.className} text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/55`}
+            >
+              Citation
+            </div>
+            <div
+              className={`${archivoBlack.className} mt-1 text-[22px] uppercase leading-none tracking-[0.04em] md:text-[26px]`}
+            >
+              Issued
+            </div>
+          </div>
+          <div className="text-right">
+            <div
+              className={`${plexMono.className} text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/55`}
+            >
+              Citation no.
+            </div>
+            <div className={`${plexMono.className} mt-1 text-[14px] tracking-[0.05em]`}>
+              #00042AF3
+            </div>
+          </div>
+        </div>
+
+        {/* details */}
+        <dl className="mt-5 space-y-3">
+          <CitationRow label="Offender" value="Riley" />
+          <CitationRow label="Issuing officer" value="Adam" />
+          <CitationRow label="Workspace" value="Acme" />
+        </dl>
+
+        <div className="my-6 border-t border-dashed border-[#0B0B0E]/40" />
+
+        {/* the charge */}
+        <div className="flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <div
+              className={`${plexMono.className} text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/55`}
+            >
+              Charge
+            </div>
+            <div className="mt-2 truncate text-[18px] italic text-[#0B0B0E]/90">
+              &quot;synergy&quot;
+            </div>
+          </div>
+          <div className={`${archivoBlack.className} shrink-0 text-[44px] leading-none md:text-[52px]`}>
+            $5.00
+          </div>
+        </div>
+
+        <div className="my-6 border-t border-dashed border-[#0B0B0E]/40" />
+
+        {/* total */}
+        <div className="flex items-baseline justify-between gap-3">
+          <div
+            className={`${plexMono.className} text-[11px] uppercase tracking-[0.22em] text-[#DC2626]`}
+          >
+            Total due
+          </div>
+          <div className={`${archivoBlack.className} text-[24px] text-[#DC2626] md:text-[28px]`}>
+            $5.00
+          </div>
+        </div>
+
+        {/* filed */}
+        <div
+          className={`${plexMono.className} mt-7 border-t border-dotted border-[#0B0B0E]/40 pt-4 text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/55`}
+        >
+          Filed Jun 20, 11:42 AM
+        </div>
+      </article>
+
+      {/* Slack actions below the receipt — the two real buttons */}
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <button className="rounded border border-[#FFD400]/60 bg-[#FFD400]/15 px-3.5 py-2 text-[12px] text-[#FFD400] hover:bg-[#FFD400]/25">
+          View receipt
+        </button>
+        <button className="rounded border border-[#F2ECD9]/20 px-3.5 py-2 text-[12px] text-[#F2ECD9]/70 hover:bg-[#F2ECD9]/10">
+          View leaderboard
+        </button>
+        <span className={`${plexMono.className} text-[11px] text-[#F2ECD9]/40`}>
+          Running total for Riley: <span className="text-[#F2ECD9]/75">$47.00</span>
+        </span>
       </div>
     </div>
   );
 }
 
-function Row({
-  label,
-  value,
-  amount,
-  total = false,
-}: {
-  label: string;
-  value: string;
-  amount?: string;
-  total?: boolean;
-}) {
+function CitationRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span
-        className={`uppercase tracking-[0.18em] ${
-          total ? "text-[#F2ECD9]" : "text-[#F2ECD9]/45"
-        } text-[10px]`}
-      >
+    <div className="flex items-baseline justify-between gap-3 border-b border-dotted border-[#0B0B0E]/30 pb-2">
+      <dt className={`${plexMono.className} text-[10px] uppercase tracking-[0.22em] text-[#0B0B0E]/55`}>
         {label}
-      </span>
-      <span className="flex-1 truncate text-right text-[#F2ECD9]/90">{value}</span>
-      {amount && (
-        <span
-          className={total ? "text-[#FFD400]" : "text-[#F2ECD9]"}
-          style={{ fontFamily: "var(--font-archivo-black)" }}
-        >
-          {amount}
-        </span>
-      )}
+      </dt>
+      <dd className={`${archivoBlack.className} text-[14px] uppercase tracking-[0.04em]`}>
+        {value}
+      </dd>
     </div>
   );
 }
