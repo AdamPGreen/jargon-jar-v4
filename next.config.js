@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    // Ship the bundled OG-image fonts with the serverless function on Vercel.
+    // Bracket-free globs: route paths with [chargeId] are matched via ** since
+    // literal square brackets are interpreted as glob character classes.
+    outputFileTracingIncludes: {
+      "/receipt/**": ["./src/og-assets/fonts/*.ttf"],
+    },
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "avatars.slack-edge.com" },

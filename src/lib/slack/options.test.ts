@@ -58,10 +58,9 @@ describe("buildTermOptions", () => {
     vi.mocked(listJargonTerms).mockReset()
   })
 
-  it("prefixes a '+ Add new' option when no exact match exists", async () => {
+  it("offers a query-specific '+ Add new' option at the top when no exact match exists", async () => {
     vi.mocked(listJargonTerms).mockResolvedValue([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { id: "t1", term: "circle back", defaultCost: "1.00", workspaceId: "w1" } as any,
+      { id: "t1", term: "circle back", defaultCost: "1.00", workspaceId: "w1" } as never,
     ])
     const result = await buildTermOptions(
       { id: "w1", installation: { botToken: "x" } },
@@ -73,27 +72,31 @@ describe("buildTermOptions", () => {
     })
   })
 
-  it("does not add the '+ Add new' option when the query exactly matches an existing term", async () => {
+  it("offers a generic '+ Add a new term' option when the query exactly matches an existing term", async () => {
     vi.mocked(listJargonTerms).mockResolvedValue([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { id: "t1", term: "synergy", defaultCost: "1.00", workspaceId: "w1" } as any,
+      { id: "t1", term: "synergy", defaultCost: "1.00", workspaceId: "w1" } as never,
     ])
     const result = await buildTermOptions(
       { id: "w1", installation: { botToken: "x" } },
       "synergy"
     )
-    expect(result.every((o) => !o.value.startsWith("__new__:"))).toBe(true)
+    expect(result[0]).toEqual({
+      text: { type: "plain_text", text: "+ Add a new term…" },
+      value: "__new__:",
+    })
+    // No query-specific add-new when the term already exists.
+    expect(result.some((o) => o.value === "__new__:synergy")).toBe(false)
   })
 
-  it("returns existing terms with their formatted default cost", async () => {
+  it("always offers the add-new option first, even with an empty query", async () => {
     vi.mocked(listJargonTerms).mockResolvedValue([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { id: "t1", term: "synergy", defaultCost: "1.50", workspaceId: "w1" } as any,
+      { id: "t1", term: "synergy", defaultCost: "1.50", workspaceId: "w1" } as never,
     ])
     const result = await buildTermOptions(
       { id: "w1", installation: { botToken: "x" } },
       ""
     )
-    expect(result[0].text.text).toBe("synergy ($1.50)")
+    expect(result[0].value).toBe("__new__:")
+    expect(result[1].text.text).toBe("synergy ($1.50)")
   })
 })

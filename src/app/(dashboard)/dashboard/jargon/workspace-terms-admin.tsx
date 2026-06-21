@@ -32,15 +32,11 @@ export function WorkspaceTermsAdmin({ workspaceName, totalCount, terms }: Props)
     <>
       <div className="flex flex-col items-start justify-between gap-4 border-b-2 border-[#0B0B0E] pb-5 md:flex-row md:items-end">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
-            § IV · Schedule of fines
-          </div>
-          <h1 className="font-heading mt-2 text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
+          <h1 className="font-heading text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
             The <span className="text-[#DC2626]">rate sheet.</span>
           </h1>
           <p className="mt-2 max-w-[60ch] text-[13px] text-[#0B0B0E]/75">
-            Every term {workspaceName} can be fined for. Workspace terms are editable.
-            Global defaults ship with every install.
+            Every term {workspaceName} can be fined for. Edit or strike any of them.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
@@ -60,23 +56,9 @@ export function WorkspaceTermsAdmin({ workspaceName, totalCount, terms }: Props)
       {addOpen && <AddForm onClose={() => setAddOpen(false)} />}
 
       <section className="border-2 border-[#0B0B0E] bg-white receipt-shadow">
-        <div className="flex items-center justify-between border-b-2 border-[#0B0B0E] px-4 py-3">
-          <div>
-            <div className="font-stamp text-[11px] uppercase tracking-[0.2em] text-[#0B0B0E]">
-              § IV-a · Workspace edits
-            </div>
-            <div className="font-stamp mt-[2px] text-[14px] uppercase tracking-[0.06em]">
-              {workspaceName} additions
-            </div>
-          </div>
-          <span className="font-stamp bg-[#0B0B0E] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-[#FFD400]">
-            Custom
-          </span>
-        </div>
-
         {terms.length === 0 ? (
           <div className="px-4 py-10 text-center text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/55">
-            No workspace terms yet. Add one above.
+            No terms yet. Add one above.
           </div>
         ) : (
           <ul className="grid grid-cols-1 px-4">

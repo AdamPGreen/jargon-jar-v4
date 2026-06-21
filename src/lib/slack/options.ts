@@ -36,7 +36,7 @@ export async function buildTermOptions(
   const terms = await listJargonTerms(workspace.id)
   const q = query.trim().toLowerCase()
   const matches = q ? terms.filter((t) => t.term.toLowerCase().includes(q)) : terms
-  const options: Option[] = matches.slice(0, 99).map((t) => ({
+  const termOptions: Option[] = matches.slice(0, 99).map((t) => ({
     text: {
       type: "plain_text",
       text: `${t.term} ($${Number(t.defaultCost).toFixed(2)})`.slice(0, 75),
@@ -44,16 +44,21 @@ export async function buildTermOptions(
     value: t.id,
   }))
 
+  // The "add a new term" action is always offered at the top of the list. When
+  // the typed query is a new name, it carries that name; otherwise it opens the
+  // add-new step with an empty name for the user to fill in.
   const trimmed = query.trim()
-  if (trimmed && !matches.some((t) => t.term.toLowerCase() === q)) {
-    options.unshift({
-      text: {
-        type: "plain_text",
-        text: `+ Add new term: "${trimmed}"`.slice(0, 75),
-      },
-      value: `__new__:${trimmed}`,
-    })
-  }
+  const hasExactMatch = matches.some((t) => t.term.toLowerCase() === q)
+  const addNewOption: Option =
+    trimmed && !hasExactMatch
+      ? {
+          text: { type: "plain_text", text: `+ Add new term: "${trimmed}"`.slice(0, 75) },
+          value: `__new__:${trimmed}`,
+        }
+      : {
+          text: { type: "plain_text", text: "+ Add a new term…" },
+          value: "__new__:",
+        }
 
-  return options
+  return [addNewOption, ...termOptions]
 }
