@@ -56,10 +56,7 @@ export default function LeaderboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-5 border-b-2 border-[#0B0B0E] pb-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
-            § III · Public record
-          </div>
-          <h1 className="font-heading mt-2 text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
+          <h1 className="font-heading text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
             Hall of <span className="text-[#DC2626]">shame.</span>
           </h1>
           <p className="mt-2 text-[13px] text-[#0B0B0E]/75">

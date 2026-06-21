@@ -124,7 +124,6 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-10">
       <PageHeader
-        section="§ I · Docket"
         title="Dashboard"
         subtitle={`Active citations for ${workspace.name}`}
         fileNo={`MEMBER-${member.id.slice(0, 8).toUpperCase()}`}
@@ -136,21 +135,18 @@ export default async function DashboardPage() {
           caption={`${userCharges.length} times caught`}
           value={`$${userTotalCharges.toFixed(2)}`}
           ribbon="Personal tab"
-          highlight={userTotalCharges > 0 ? "red" : "ink"}
         />
         <StatCard
           label="Workspace jar"
           caption={`${workspaceCharges.length} total citations`}
           value={`$${workspaceTotalCharges.toFixed(2)}`}
           ribbon="Group pot"
-          highlight="yellow"
         />
         <StatCard
           label="Most common jargon"
           caption={mostCommonJargon.count > 0 ? `${mostCommonJargon.count} uses` : "no fines yet"}
           value={`"${mostCommonJargon.term}"`}
           ribbon="Repeat offense"
-          highlight="ink"
           monospace
         />
       </div>
@@ -161,7 +157,7 @@ export default async function DashboardPage() {
       </div>
 
       <section>
-        <SectionHeader section="§ II · Citation log" title="Recent activity" />
+        <SectionHeader title="Recent activity" />
         <div className="border-2 border-[#0B0B0E] bg-white">
           <ActivityFeed activities={activities} userId={member.id} />
         </div>
@@ -171,12 +167,10 @@ export default async function DashboardPage() {
 }
 
 function PageHeader({
-  section,
   title,
   subtitle,
   fileNo,
 }: {
-  section: string
   title: string
   subtitle: string
   fileNo?: string
@@ -184,10 +178,7 @@ function PageHeader({
   return (
     <div className="flex items-end justify-between gap-4 border-b-2 border-[#0B0B0E] pb-5">
       <div>
-        <div className="text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
-          {section}
-        </div>
-        <h1 className="font-heading mt-2 text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
+        <h1 className="font-heading text-[44px] uppercase leading-[0.9] tracking-[-0.005em] md:text-[64px]">
           {title}
         </h1>
         <p className="mt-2 text-[13px] text-[#0B0B0E]/75">{subtitle}</p>
@@ -203,17 +194,12 @@ function PageHeader({
   )
 }
 
-function SectionHeader({ section, title }: { section: string; title: string }) {
+function SectionHeader({ title }: { title: string }) {
   return (
     <div className="mb-4 flex items-baseline justify-between border-b-2 border-[#0B0B0E] pb-3">
-      <div>
-        <div className="text-[11px] uppercase tracking-[0.22em] text-[#0B0B0E]/60">
-          {section}
-        </div>
-        <h2 className="font-heading mt-1 text-[28px] uppercase leading-[0.95] md:text-[36px]">
-          {title}
-        </h2>
-      </div>
+      <h2 className="font-heading text-[28px] uppercase leading-[0.95] md:text-[36px]">
+        {title}
+      </h2>
     </div>
   )
 }
@@ -223,30 +209,21 @@ function StatCard({
   caption,
   value,
   ribbon,
-  highlight = "ink",
   monospace = false,
 }: {
   label: string
   caption: string
   value: string
   ribbon: string
-  highlight?: "ink" | "yellow" | "red"
   monospace?: boolean
 }) {
-  const ribbonClass =
-    highlight === "yellow"
-      ? "bg-[#FFD400] text-[#0B0B0E]"
-      : highlight === "red"
-        ? "bg-[#DC2626] text-[#FFFFFF]"
-        : "bg-[#0B0B0E] text-[#FFFFFF]"
-
   return (
     <div className="relative border-2 border-[#0B0B0E] bg-white receipt-shadow">
       <div className="flex items-center justify-between border-b border-dashed border-[#0B0B0E]/40 px-4 py-2">
         <span className="font-stamp text-[11px] uppercase tracking-[0.2em] text-[#0B0B0E]">
           {label}
         </span>
-        <span className={`font-stamp px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] ${ribbonClass}`}>
+        <span className="font-stamp bg-[#DC2626] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-white">
           {ribbon}
         </span>
       </div>

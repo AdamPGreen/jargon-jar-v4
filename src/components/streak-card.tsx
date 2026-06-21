@@ -55,7 +55,7 @@ export function StreakCard({ currentStreak, recordStreak }: StreakCardProps) {
         <span className="font-stamp text-[11px] uppercase tracking-[0.2em] text-[#0B0B0E]">
           Streak
         </span>
-        <span className="font-stamp bg-[#0B0B0E] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-[#FFD400]">
+        <span className="font-stamp bg-[#DC2626] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-white">
           Clean count
         </span>
       </div>

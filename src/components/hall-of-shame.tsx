@@ -35,7 +35,7 @@ export function HallOfShame({ topUsers }: HallOfShameProps) {
         <span className="font-stamp text-[11px] uppercase tracking-[0.2em] text-[#0B0B0E]">
           Hall of shame
         </span>
-        <span className="font-stamp bg-[#DC2626] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-[#F2ECD9]">
+        <span className="font-stamp bg-[#DC2626] px-2 py-[2px] text-[9px] uppercase tracking-[0.18em] text-white">
           Top offenders
         </span>
       </div>
